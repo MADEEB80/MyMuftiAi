@@ -9,38 +9,45 @@ import {
   serverTimestamp,
   setDoc,
   deleteDoc,
-} from "firebase/firestore"
-import { db } from "@/lib/firebase"
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 // User roles
-export type UserRole = "user" | "scholar" | "admin"
+export type UserRole = "user" | "scholar" | "admin";
 
 // User status
-export type UserStatus = "active" | "blocked"
+export type UserStatus = "active" | "blocked";
 
 // User interface
 export interface User {
-  id: string
-  displayName: string
-  email: string
-  role: UserRole
-  status: UserStatus
-  createdAt: Date
-  updatedAt?: Date
+  id: string;
+  displayName: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  createdAt: Date;
+  updatedAt?: Date;
 }
+
+/**
+ * Helper function to safely convert a Firestore timestamp to a JavaScript Date.
+ * If the value already is a Date (or doesn't have a toDate method), it returns the value as is.
+ */
+const convertTimestamp = (timestamp: any): Date | any =>
+  timestamp && typeof timestamp.toDate === "function" ? timestamp.toDate() : timestamp;
 
 /**
  * Get a user by ID
  */
 export async function getUserById(userId: string): Promise<User | null> {
   try {
-    const userDoc = await getDoc(doc(db, "users", userId))
+    const userDoc = await getDoc(doc(db, "users", userId));
 
     if (!userDoc.exists()) {
-      return null
+      return null;
     }
 
-    const userData = userDoc.data()
+    const userData = userDoc.data();
 
     return {
       id: userDoc.id,
@@ -48,12 +55,12 @@ export async function getUserById(userId: string): Promise<User | null> {
       email: userData.email || "",
       role: userData.role || "user",
       status: userData.status || "active",
-      createdAt: userData.createdAt?.toDate() || new Date(),
-      updatedAt: userData.updatedAt?.toDate(),
-    }
+      createdAt: convertTimestamp(userData.createdAt) || new Date(),
+      updatedAt: convertTimestamp(userData.updatedAt),
+    };
   } catch (error) {
-    console.error("Error getting user:", error)
-    throw error
+    console.error("Error getting user:", error);
+    throw error;
   }
 }
 
@@ -62,15 +69,15 @@ export async function getUserById(userId: string): Promise<User | null> {
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
-    const usersQuery = query(collection(db, "users"), where("email", "==", email))
-    const querySnapshot = await getDocs(usersQuery)
+    const usersQuery = query(collection(db, "users"), where("email", "==", email));
+    const querySnapshot = await getDocs(usersQuery);
 
     if (querySnapshot.empty) {
-      return null
+      return null;
     }
 
-    const userDoc = querySnapshot.docs[0]
-    const userData = userDoc.data()
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
 
     return {
       id: userDoc.id,
@@ -78,12 +85,12 @@ export async function getUserByEmail(email: string): Promise<User | null> {
       email: userData.email || "",
       role: userData.role || "user",
       status: userData.status || "active",
-      createdAt: userData.createdAt?.toDate() || new Date(),
-      updatedAt: userData.updatedAt?.toDate(),
-    }
+      createdAt: convertTimestamp(userData.createdAt) || new Date(),
+      updatedAt: convertTimestamp(userData.updatedAt),
+    };
   } catch (error) {
-    console.error("Error getting user by email:", error)
-    throw error
+    console.error("Error getting user by email:", error);
+    throw error;
   }
 }
 
@@ -95,10 +102,10 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<vo
     await updateDoc(doc(db, "users", userId), {
       role,
       updatedAt: serverTimestamp(),
-    })
+    });
   } catch (error) {
-    console.error("Error updating user role:", error)
-    throw error
+    console.error("Error updating user role:", error);
+    throw error;
   }
 }
 
@@ -110,10 +117,10 @@ export async function updateUserStatus(userId: string, status: UserStatus): Prom
     await updateDoc(doc(db, "users", userId), {
       status,
       updatedAt: serverTimestamp(),
-    })
+    });
   } catch (error) {
-    console.error("Error updating user status:", error)
-    throw error
+    console.error("Error updating user status:", error);
+    throw error;
   }
 }
 
@@ -122,15 +129,15 @@ export async function updateUserStatus(userId: string, status: UserStatus): Prom
  */
 export async function createOrUpdateUser(userId: string, userData: Partial<User>): Promise<void> {
   try {
-    const userRef = doc(db, "users", userId)
-    const userDoc = await getDoc(userRef)
+    const userRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userRef);
 
     if (userDoc.exists()) {
       // Update existing user
       await updateDoc(userRef, {
         ...userData,
         updatedAt: serverTimestamp(),
-      })
+      });
     } else {
       // Create new user
       await setDoc(userRef, {
@@ -139,11 +146,11 @@ export async function createOrUpdateUser(userId: string, userData: Partial<User>
         status: userData.status || "active",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      })
+      });
     }
   } catch (error) {
-    console.error("Error creating/updating user:", error)
-    throw error
+    console.error("Error creating/updating user:", error);
+    throw error;
   }
 }
 
@@ -152,10 +159,10 @@ export async function createOrUpdateUser(userId: string, userData: Partial<User>
  */
 export async function deleteUser(userId: string): Promise<void> {
   try {
-    await deleteDoc(doc(db, "users", userId))
+    await deleteDoc(doc(db, "users", userId));
   } catch (error) {
-    console.error("Error deleting user:", error)
-    throw error
+    console.error("Error deleting user:", error);
+    throw error;
   }
 }
 
@@ -164,11 +171,11 @@ export async function deleteUser(userId: string): Promise<void> {
  */
 export async function isUserAdmin(userId: string): Promise<boolean> {
   try {
-    const user = await getUserById(userId)
-    return user?.role === "admin"
+    const user = await getUserById(userId);
+    return user?.role === "admin";
   } catch (error) {
-    console.error("Error checking if user is admin:", error)
-    return false
+    console.error("Error checking if user is admin:", error);
+    return false;
   }
 }
 
@@ -177,11 +184,10 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
  */
 export async function isUserScholar(userId: string): Promise<boolean> {
   try {
-    const user = await getUserById(userId)
-    return user?.role === "scholar"
+    const user = await getUserById(userId);
+    return user?.role === "scholar";
   } catch (error) {
-    console.error("Error checking if user is scholar:", error)
-    return false
+    console.error("Error checking if user is scholar:", error);
+    return false;
   }
 }
-

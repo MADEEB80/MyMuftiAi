@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { createContext, useContext, useEffect, useState } from "react"
 import {
   createUserWithEmailAndPassword,
@@ -116,4 +115,3 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 }
 
 export const useAuth = () => useContext(AuthContext)
-

@@ -1,0 +1,43 @@
+MyMufti Setup and Installation Instructions
+============================================
+
+1. Download the Package
+-----------------------
+   - Download "MyMufti.zip" from the LMS.
+
+2. Extract the Package
+----------------------
+   - Extract the contents of the zip file to any directory of your choice.
+
+3. Verify Node.js Installation
+-------------------------------
+   - Ensure Node.js is installed on your system.
+   - To verify, open your terminal or command prompt and run:
+     
+         node -v
+
+4. Navigate to the Project Directory
+--------------------------------------
+   - Open your terminal or command prompt.
+   - Change directory to the extracted project folder (e.g., if extracted to the "Downloads" folder):
+     
+         cd Downloads/Mymufti
+
+5. Install Project Dependencies
+-------------------------------
+   - Run the following command to install dependencies (forcing installation if necessary):
+     
+         npm install --force
+
+6. Start the Development Server
+-------------------------------
+   - Run the development server by executing:
+     
+         npm run dev
+
+7. Monitor the Real-Time Status
+-------------------------------
+   - You can check the project status in real-time at:
+     
+         test.mymufti.com
+   - i will host this as soon as possiable
