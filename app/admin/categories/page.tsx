@@ -31,7 +31,7 @@ async function fetchCategories() {
         description: data.description || "",
         questionCount: questionCount,
         createdAt: (data.createdAt?.toDate() || new Date()).toISOString(),
-        updatedAt: data.updatedAt?.toDate().toISOString(),
+        updatedAt: data.updatedAt?.toDate()?.toISOString(),
       })
     }
     return fetchedCategories
