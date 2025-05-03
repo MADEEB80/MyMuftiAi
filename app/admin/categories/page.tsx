@@ -2,6 +2,9 @@ import { collection, query, orderBy, getDocs, where, getCountFromServer } from "
 import { db } from "@/lib/firebase"
 import CategoriesManagement from './CategoriesManagement'
 
+// Force dynamic rendering to bypass prerendering issues
+export const dynamic = 'force-dynamic'
+
 interface Category {
   id: string
   name: string
@@ -30,11 +33,12 @@ async function fetchCategories() {
         value: data.value || doc.id,
         description: data.description || "",
         questionCount: questionCount,
-        createdAt: (data.createdAt?.toDate() || new Date()).toISOString(),
-        updatedAt: data.updatedAt?.toDate()?.toISOString(),
+        createdAt: (data.createdAt?.toDate?.() || new Date()).toISOString(),
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString(),
       })
     }
-    return fetchedCategories
+    // Explicitly serialize to ensure no non-serializable data
+    return JSON.parse(JSON.stringify(fetchedCategories))
   } catch (error) {
     console.error("Error fetching categories:", error)
     return []
@@ -43,6 +47,5 @@ async function fetchCategories() {
 
 export default async function CategoriesPage() {
   const categories = await fetchCategories()
-  // Ensure categories is a plain array of serializable objects
-  return <CategoriesManagement initialCategories={JSON.parse(JSON.stringify(categories))} />
+  return <CategoriesManagement initialCategories={categories} />
 }

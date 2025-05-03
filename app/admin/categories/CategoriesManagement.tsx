@@ -51,7 +51,7 @@ export default function CategoriesManagement({ initialCategories }: { initialCat
   const [categoryValue, setCategoryValue] = useState("")
   const [categoryDescription, setCategoryDescription] = useState("")
 
-  const { user, userRole } = useAuth()
+  const { user, userRole } = useAuth() // Ensure useAuth does not return functions or non-serializable objects
   const router = useRouter()
 
   useEffect(() => {
@@ -75,14 +75,13 @@ export default function CategoriesManagement({ initialCategories }: { initialCat
         name: categoryName,
         value: categoryValue.toLowerCase(),
         description: categoryDescription,
-        questionCount: 0,
         createdAt: serverTimestamp(),
       }
       const docRef = await addDoc(collection(db, "categories"), newCategory)
 
       setCategories((prevCategories) => [
         ...prevCategories,
-        { ...newCategory, id: docRef.id, createdAt: new Date().toISOString() },
+        { ...newCategory, id: docRef.id, createdAt: new Date().toISOString(), questionCount: 0 },
       ])
 
       resetForm()
