@@ -35,8 +35,8 @@ interface Category {
   value: string
   description: string
   questionCount: number
-  createdAt: Date
-  updatedAt?: Date
+  createdAt: string
+  updatedAt?: string
 }
 
 export default function CategoriesManagement({ initialCategories }: { initialCategories: Category[] }) {
@@ -82,7 +82,7 @@ export default function CategoriesManagement({ initialCategories }: { initialCat
 
       setCategories((prevCategories) => [
         ...prevCategories,
-        { ...newCategory, id: docRef.id, createdAt: new Date() },
+        { ...newCategory, id: docRef.id, createdAt: new Date().toISOString() },
       ])
 
       resetForm()
@@ -167,7 +167,8 @@ export default function CategoriesManagement({ initialCategories }: { initialCat
     setIsEditDialogOpen(true)
   }
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
     return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "short",

@@ -8,8 +8,8 @@ interface Category {
   value: string
   description: string
   questionCount: number
-  createdAt: Date
-  updatedAt?: Date
+  createdAt: string
+  updatedAt?: string
 }
 
 async function fetchCategories() {
@@ -30,8 +30,8 @@ async function fetchCategories() {
         value: data.value || doc.id,
         description: data.description || "",
         questionCount: questionCount,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate(),
+        createdAt: (data.createdAt?.toDate() || new Date()).toISOString(),
+        updatedAt: data.updatedAt?.toDate().toISOString(),
       })
     }
     return fetchedCategories
