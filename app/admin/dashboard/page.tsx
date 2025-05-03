@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Users, BookOpen, HelpCircle, FileText, BarChart3, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { db } from "@/lib/firebase"
-import { doc, updateDoc, getDoc, Timestamp } from "firebase/firestore"
+import { collection, query, where, getDocs, orderBy, limit, doc, updateDoc, getDoc, getCountFromServer, Timestamp } from "firebase/firestore"
 import { createNotification } from "@/lib/notification-service"
 
 interface DashboardStats {
@@ -67,20 +67,117 @@ export default function Dashboard({
   const [recentQuestions, setRecentQuestions] = useState<Question[]>(initialRecentQuestions)
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>(initialPendingQuestions)
   const [scholars, setScholars] = useState<Scholar[]>(initialScholars)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [selectedScholar, setSelectedScholar] = useState<string>("")
   const [isActionLoading, setIsActionLoading] = useState(false)
 
-  const { user, userRole } = useAuth()
+  const { user, userRole, loading: authLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!user || userRole !== "admin") {
+    console.log("useAuth output:", JSON.stringify({ user, userRole, authLoading }))
+    if (!authLoading && (!user || userRole !== "admin")) {
       router.push("/")
+    } else if (!authLoading && user && userRole === "admin") {
+      fetchDashboardData()
     }
-  }, [user, userRole, router])
+  }, [user, userRole, authLoading, router])
+
+  async function fetchDashboardData() {
+    try {
+      // Fetch stats
+      const usersSnapshot = await getCountFromServer(collection(db, "users"))
+      const totalUsers = usersSnapshot.data().count
+
+      const scholarsQuery = query(collection(db, "users"), where("role", "==", "scholar"))
+      const scholarsSnapshot = await getCountFromServer(scholarsQuery)
+      const totalScholars = scholarsSnapshot.data().count
+
+      const questionsSnapshot = await getCountFromServer(collection(db, "questions"))
+      const totalQuestions = questionsSnapshot.data().count
+
+      const pendingQuery = query(collection(db, "questions"), where("status", "==", "pending"))
+      const pendingSnapshot = await getCountFromServer(pendingQuery)
+      const pendingQuestionsCount = pendingSnapshot.data().count
+
+      const answeredQuery = query(collection(db, "questions"), where("status", "==", "answered"))
+      const answeredSnapshot = await getCountFromServer(answeredQuery)
+      const answeredQuestions = answeredSnapshot.data().count
+
+      const categoriesSnapshot = await getCountFromServer(collection(db, "categories"))
+      const totalCategories = categoriesSnapshot.data().count
+
+      setStats({
+        totalUsers,
+        totalQuestions,
+        pendingQuestions: pendingQuestionsCount,
+        answeredQuestions,
+        totalCategories,
+        totalScholars,
+      })
+
+      // Fetch recent questions
+      const recentQuery = query(collection(db, "questions"), orderBy("createdAt", "desc"), limit(5))
+      const recentSnapshot = await getDocs(recentQuery)
+      const recentData: Question[] = recentSnapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          title: data.title || "Untitled",
+          userId: data.userId || "",
+          userName: data.userName || "Anonymous",
+          status: data.status || "pending",
+          category: data.category || "general",
+          createdAt: (data.createdAt?.toDate?.() || new Date()).toISOString(),
+          assignedTo: data.assignedTo || undefined,
+          scholarName: data.scholarName || undefined,
+        }
+      })
+      setRecentQuestions(recentData)
+
+      // Fetch pending questions
+      const pendingQuestionsQuery = query(
+        collection(db, "questions"),
+        where("status", "in", ["pending", "approved"]),
+        limit(10),
+      )
+      const pendingQuestionsSnapshot = await getDocs(pendingQuestionsQuery)
+      const pendingData: Question[] = pendingQuestionsSnapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          title: data.title || "Untitled",
+          userId: data.userId || "",
+          userName: data.userName || "Anonymous",
+          status: data.status || "pending",
+          category: data.category || "general",
+          createdAt: (data.createdAt?.toDate?.() || new Date()).toISOString(),
+          assignedTo: data.assignedTo || undefined,
+          scholarName: data.scholarName || undefined,
+        }
+      })
+      setPendingQuestions(pendingData)
+
+      // Fetch scholars
+      const scholarsQuery = query(collection(db, "users"), where("role", "==", "scholar"))
+      const scholarsSnapshot = await getDocs(scholarsQuery)
+      const scholarsData: Scholar[] = scholarsSnapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          displayName: data.displayName || "Unknown Scholar",
+          email: data.email || "",
+        }
+      })
+      setScholars(scholarsData)
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleApproveQuestion = async (questionId: string) => {
     setIsActionLoading(true)
@@ -219,6 +316,14 @@ export default function Dashboard({
       default:
         return <Badge variant="outline">Unknown</Badge>
     }
+  }
+
+  if (loading || authLoading) {
+    return (
+      <div className="container flex h-[calc(100vh-200px)] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   if (!user || userRole !== "admin") {
