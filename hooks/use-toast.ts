@@ -191,4 +191,3 @@ import { useToast as useToastOriginal2 } from "@/components/ui/use-toast"
 
 // Re-export the hook to make it available from our hooks directory
 export const useToast = useToastOriginal2
-

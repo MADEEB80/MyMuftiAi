@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/auth-context"
 import { subscribeToUserNotifications, type Notification } from "@/lib/notification-service"
@@ -14,6 +13,7 @@ export default function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
   const { user } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -59,54 +59,55 @@ export default function NotificationBell() {
     }
 
     // Mark as read logic would go here
+    setIsOpen(false)
   }
 
   if (!user) return null
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <Badge
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-              variant="destructive"
-            >
-              {unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <div className="p-2 font-medium border-b">Notifications</div>
-        <div className="max-h-[300px] overflow-y-auto">
-          {error ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              Failed to load notifications. Please try again later.
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
-          ) : (
-            notifications.map((notification) => (
-              <DropdownMenuItem
-                key={notification.id}
-                className={`p-3 cursor-pointer ${!notification.read ? "bg-muted/50" : ""}`}
-                onClick={() => handleNotificationClick(notification)}
-              >
-                <div className="flex flex-col gap-1">
-                  <div className="font-medium">{notification.title}</div>
-                  <div className="text-sm text-muted-foreground">{notification.message}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(notification.createdAt).toLocaleString()}
+    <div className="relative">
+      <Button variant="ghost" size="icon" className="relative" onClick={() => setIsOpen(!isOpen)}>
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <Badge
+            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+            variant="destructive"
+          >
+            {unreadCount}
+          </Badge>
+        )}
+      </Button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+          <div className="p-2 font-medium border-b">Notifications</div>
+          <div className="max-h-[300px] overflow-y-auto">
+            {error ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                Failed to load notifications. Please try again later.
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
+            ) : (
+              notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`p-3 cursor-pointer hover:bg-gray-100 ${!notification.read ? "bg-gray-50" : ""}`}
+                  onClick={() => handleNotificationClick(notification)}
+                >
+                  <div className="flex flex-col gap-1">
+                    <div className="font-medium">{notification.title}</div>
+                    <div className="text-sm text-muted-foreground">{notification.message}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(notification.createdAt).toLocaleString()}
+                    </div>
                   </div>
                 </div>
-              </DropdownMenuItem>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      )}
+    </div>
   )
 }
-

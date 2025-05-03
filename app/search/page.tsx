@@ -2,273 +2,298 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { useLanguage } from "@/lib/language-context"
+import { useSearchParams } from "next/navigation"
+import { searchQuestions } from "@/lib/question-service"
+import type { Question } from "@/types/question"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { SearchIcon, Loader2, AlertCircle, ExternalLink } from "lucide-react"
-import { collection, query, where, getDocs, limit } from "firebase/firestore"
-import { db } from "@/lib/firebase"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Search, Filter, SortAsc, SortDesc, Calendar } from "lucide-react"
+import Link from "next/link"
+import { motion } from "framer-motion"
 
-const categories = [
-  { value: "all", label: "All Categories" },
-  { value: "prayers", label: "Prayers (Salah)" },
-  { value: "fasting", label: "Fasting (Sawm)" },
-  { value: "zakat", label: "Charity (Zakat)" },
-  { value: "hajj", label: "Pilgrimage (Hajj)" },
-  { value: "business", label: "Business & Finance" },
-  { value: "family", label: "Family & Relationships" },
-  { value: "general", label: "General Questions" },
-]
-
-interface Question {
-  id: string
-  title: string
-  category: string
-  question: string
-  answer?: string
-  createdAt: Date
-}
-
+// Search page component
 export default function SearchPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("all")
-  const [questions, setQuestions] = useState<Question[]>([])
+  const { language, isRTL } = useLanguage()
+  const searchParams = useSearchParams()
+  const initialQuery = searchParams.get("q") || ""
+
+  const [searchQuery, setSearchQuery] = useState(initialQuery)
+  const [results, setResults] = useState<Question[]>([])
   const [loading, setLoading] = useState(false)
-  const [initialLoad, setInitialLoad] = useState(true)
-  const [indexError, setIndexError] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<"relevance" | "date">("relevance")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
-  // Load recent answered questions on initial page load
-  useEffect(() => {
-    const loadRecentQuestions = async () => {
-      setLoading(true)
-      setIndexError(null)
-
-      try {
-        // Use a simpler query that doesn't require a composite index
-        const q = query(collection(db, "questions"), where("status", "==", "answered"), limit(10))
-
-        const querySnapshot = await getDocs(q)
-        const fetchedQuestions: Question[] = []
-
-        querySnapshot.forEach((doc) => {
-          const data = doc.data()
-          fetchedQuestions.push({
-            id: doc.id,
-            title: data.title,
-            category: data.category,
-            question: data.question,
-            answer: data.answer,
-            createdAt: data.createdAt?.toDate() || new Date(),
-          })
-        })
-
-        // Sort the results client-side instead of in the query
-        fetchedQuestions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-
-        setQuestions(fetchedQuestions)
-      } catch (error: any) {
-        console.error("Error fetching recent questions:", error)
-
-        // Check if it's an index error and extract the URL
-        if (error.message && error.message.includes("index")) {
-          const urlMatch = error.message.match(/https:\/\/console\.firebase\.google\.com[^\s]+/)
-          if (urlMatch) {
-            setIndexError(urlMatch[0])
-          } else {
-            setIndexError("An index is required for this query. Please contact the administrator.")
-          }
-        }
-      } finally {
-        setLoading(false)
-        setInitialLoad(false)
-      }
+  // Fetch search results when query changes
+  const performSearch = useCallback(async () => {
+    if (!searchQuery.trim()) {
+      setResults([])
+      return
     }
 
-    loadRecentQuestions()
-  }, [])
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
     setLoading(true)
-    setIndexError(null)
-
     try {
-      let q
-
-      if (selectedCategory === "all") {
-        // Search across all categories
-        q = query(collection(db, "questions"), where("status", "==", "answered"), limit(20))
-      } else {
-        // Search within specific category
-        q = query(
-          collection(db, "questions"),
-          where("status", "==", "answered"),
-          where("category", "==", selectedCategory),
-          limit(20),
-        )
-      }
-
-      const querySnapshot = await getDocs(q)
-      let fetchedQuestions: Question[] = []
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data()
-        fetchedQuestions.push({
-          id: doc.id,
-          title: data.title,
-          category: data.category,
-          question: data.question,
-          answer: data.answer,
-          createdAt: data.createdAt?.toDate() || new Date(),
-        })
-      })
-
-      // Sort the results client-side
-      fetchedQuestions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-
-      // Filter by search term if provided
-      if (searchTerm) {
-        const lowerSearchTerm = searchTerm.toLowerCase()
-        fetchedQuestions = fetchedQuestions.filter(
-          (q) =>
-            q.title.toLowerCase().includes(lowerSearchTerm) ||
-            q.question.toLowerCase().includes(lowerSearchTerm) ||
-            (q.answer && q.answer.toLowerCase().includes(lowerSearchTerm)),
-        )
-      }
-
-      setQuestions(fetchedQuestions)
-    } catch (error: any) {
+      const searchResults = await searchQuestions(searchQuery, language)
+      setResults(searchResults)
+    } catch (error) {
       console.error("Error searching questions:", error)
-
-      // Check if it's an index error and extract the URL
-      if (error.message && error.message.includes("index")) {
-        const urlMatch = error.message.match(/https:\/\/console\.firebase\.google\.com[^\s]+/)
-        if (urlMatch) {
-          setIndexError(urlMatch[0])
-        } else {
-          setIndexError("An index is required for this query. Please contact the administrator.")
-        }
-      }
-
-      // Set empty questions array on error
-      setQuestions([])
     } finally {
       setLoading(false)
     }
+  }, [searchQuery, language])
+
+  // Initial search on mount if query exists
+  useEffect(() => {
+    if (initialQuery) {
+      performSearch()
+    }
+  }, [initialQuery, performSearch])
+
+  // Handle search form submission
+  const handleSearch = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      performSearch()
+    },
+    [performSearch],
+  )
+
+  // Extract unique categories from results
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set<string>()
+    results.forEach((question) => {
+      if (question.categoryName) {
+        uniqueCategories.add(question.categoryName)
+      }
+    })
+    return Array.from(uniqueCategories)
+  }, [results])
+
+  // Filter and sort results
+  const filteredAndSortedResults = useMemo(() => {
+    let filtered = [...results]
+
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter((q) => q.categoryName === selectedCategory)
+    }
+
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      if (sortBy === "date") {
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA
+      } else {
+        // Sort by relevance (title match)
+        const titleMatchA = a.title.toLowerCase().includes(searchQuery.toLowerCase()) ? 1 : 0
+        const titleMatchB = b.title.toLowerCase().includes(searchQuery.toLowerCase()) ? 1 : 0
+
+        if (titleMatchA !== titleMatchB) {
+          return sortOrder === "asc" ? titleMatchA - titleMatchB : titleMatchB - titleMatchA
+        }
+
+        // If title match is the same, sort by date
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA
+      }
+    })
+  }, [results, selectedCategory, sortBy, sortOrder, searchQuery])
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+      },
+    },
   }
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    }).format(date)
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.3 },
+    },
   }
 
   return (
-    <div className="container py-10">
-      <div className="mx-auto max-w-4xl">
-        <h1 className="mb-6 text-3xl font-bold">Search Islamic Questions</h1>
+    <div className={`container py-8 ${isRTL ? "rtl" : ""}`}>
+      <h1 className="text-3xl font-bold mb-6">{language === "ur" ? "سوالات تلاش کریں" : "Search Questions"}</h1>
 
-        <Card className="mb-8">
-          <CardContent className="pt-6">
-            <form onSubmit={handleSearch} className="flex flex-col gap-4 md:flex-row">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search for questions..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-              <div className="w-full md:w-48">
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" disabled={loading}>
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchIcon className="mr-2 h-4 w-4" />}
-                Search
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {indexError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>This query requires a Firestore index.</span>
-              <a
-                href={indexError}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center text-white hover:underline"
-              >
-                Create Index <ExternalLink className="ml-1 h-3 w-3" />
-              </a>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold">
-            {initialLoad ? "Recent Answered Questions" : questions.length > 0 ? "Search Results" : "No Results Found"}
-          </h2>
-        </div>
-
-        {loading ? (
-          <div className="flex h-40 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      {/* Search Form */}
+      <form onSubmit={handleSearch} className="mb-8">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder={language === "ur" ? "اپنا سوال تلاش کریں..." : "Search for questions..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        ) : (
-          <div className="space-y-4">
-            {questions.length === 0 && !initialLoad ? (
-              <Card>
-                <CardContent className="flex h-40 items-center justify-center">
-                  <p className="text-muted-foreground">No questions found matching your search criteria</p>
-                </CardContent>
-              </Card>
+          <Button type="submit" disabled={loading}>
+            {loading ? (
+              <span className="flex items-center">
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                {language === "ur" ? "تلاش کر رہا ہے..." : "Searching..."}
+              </span>
             ) : (
-              questions.map((question) => (
-                <Card key={question.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-xl">{question.title}</CardTitle>
-                      <Badge>{question.category.charAt(0).toUpperCase() + question.category.slice(1)}</Badge>
-                    </div>
-                    <CardDescription>{formatDate(question.createdAt)}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="line-clamp-2 text-muted-foreground">{question.question}</p>
-                  </CardContent>
-                  <CardFooter>
-                    <Link href={`/questions/${question.id}`}>
-                      <Button>View Full Answer</Button>
-                    </Link>
-                  </CardFooter>
-                </Card>
-              ))
+              <span>{language === "ur" ? "تلاش کریں" : "Search"}</span>
             )}
+          </Button>
+        </div>
+      </form>
+
+      {/* Results Section */}
+      {results.length > 0 ? (
+        <div>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <p className="text-muted-foreground">
+              {language === "ur"
+                ? `${filteredAndSortedResults.length} نتائج ملے`
+                : `Found ${filteredAndSortedResults.length} results`}
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {/* Sort Controls */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">{language === "ur" ? "ترتیب دیں:" : "Sort by:"}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortBy(sortBy === "relevance" ? "date" : "relevance")}
+                  className="flex items-center gap-1"
+                >
+                  {sortBy === "relevance" ? (
+                    <>
+                      <Filter className="h-4 w-4" />
+                      <span>{language === "ur" ? "متعلقہ" : "Relevance"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="h-4 w-4" />
+                      <span>{language === "ur" ? "تاریخ" : "Date"}</span>
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                  className="flex items-center gap-1"
+                >
+                  {sortOrder === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Category Tabs */}
+          {categories.length > 0 && (
+            <Tabs defaultValue="all" className="mb-6">
+              <TabsList className="mb-4 flex flex-wrap">
+                <TabsTrigger value="all" onClick={() => setSelectedCategory(null)} className="mb-1">
+                  {language === "ur" ? "تمام" : "All"}
+                </TabsTrigger>
+                {categories.map((category) => (
+                  <TabsTrigger
+                    key={category}
+                    value={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className="mb-1"
+                  >
+                    {category}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
+
+          {/* Results List */}
+          <motion.div className="space-y-4" variants={containerVariants} initial="hidden" animate="visible">
+            {filteredAndSortedResults.map((question) => (
+              <motion.div key={question.id} variants={itemVariants}>
+                <Link href={`/questions/${question.id}`}>
+                  <Card className="hover:bg-muted/30 transition-colors cursor-pointer">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">{question.title}</CardTitle>
+                      <CardDescription>
+                        {language === "ur" ? "بذریعہ" : "By"} {question.userName} •{" "}
+                        {new Date(question.createdAt).toLocaleDateString()}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="line-clamp-2 text-sm text-gray-600 mb-2">{question.content}</p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{question.categoryName}</Badge>
+                        <Badge variant={question.status === "answered" ? "default" : "secondary"}>
+                          {question.status === "answered"
+                            ? language === "ur"
+                              ? "جواب دیا گیا"
+                              : "Answered"
+                            : language === "ur"
+                              ? "زیر التواء"
+                              : "Pending"}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      ) : searchQuery && !loading ? (
+        <div className="text-center py-12">
+          <div className="mb-4">
+            <Search className="h-12 w-12 mx-auto text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">
+            {language === "ur" ? "کوئی نتیجہ نہیں ملا" : "No results found"}
+          </h2>
+          <p className="text-muted-foreground">
+            {language === "ur"
+              ? "براہ کرم اپنی تلاش کو دوبارہ چیک کریں یا کوئی اور مطلب استعمال کریں"
+              : "Please check your search or try different terms"}
+          </p>
+        </div>
+      ) : !loading ? (
+        <div className="text-center py-12">
+          <div className="mb-4">
+            <Search className="h-12 w-12 mx-auto text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">
+            {language === "ur" ? "سوالات تلاش کریں" : "Search for Questions"}
+          </h2>
+          <p className="text-muted-foreground">
+            {language === "ur" ? "اپنے سوال سے متعلق مطلب درج کریں" : "Enter terms related to your question"}
+          </p>
+        </div>
+      ) : null}
     </div>
   )
 }
-

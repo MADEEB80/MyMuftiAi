@@ -1,17 +1,18 @@
 import type React from "react"
-import "@/app/globals.css"
+import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import { ThemeProvider } from "@/components/theme-provider"
-import Header from "@/components/header"
-import Footer from "@/components/footer"
+import "./globals.css"
 import { Providers } from "./providers"
-import { Toaster } from "@/components/ui/toaster"
+import ClientLayout from "./client-layout"
 
-const inter = Inter({ subsets: ["latin"] })
+// Load Inter font
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
-export const metadata = {
+// Define metadata for SEO
+export const metadata: Metadata = {
   title: "MyMufti.com - Islamic Q&A Platform",
-  description: "Get reliable Islamic answers from certified Muftis",
+  description: "Get authentic answers to your Islamic questions from qualified scholars",
+  keywords: "Islam, questions, answers, fatwa, Islamic scholars, Mufti",
     generator: 'v0.dev'
 }
 
@@ -21,23 +22,28 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" dir="ltr" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light">
-          <Providers>
-            <div className="relative flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
-            <Toaster />
-          </Providers>
-        </ThemeProvider>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Add local Urdu font support */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+          @font-face {
+            font-family: 'Jameel Noori Nastaleeq';
+            src: url('/fonts/jameel-noori-nastaleeq.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+          }
+        `,
+          }}
+        />
+      </head>
+      <body className={inter.variable}>
+        <Providers>
+          <ClientLayout>{children}</ClientLayout>
+        </Providers>
       </body>
     </html>
   )
 }
-
-
-
-import './globals.css'

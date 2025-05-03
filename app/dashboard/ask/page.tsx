@@ -1,176 +1,193 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
+import { createQuestion } from "@/lib/question-service"
+import { useAuth } from "@/lib/auth-context"
+import { useToast } from "@/hooks/use-toast"
+import { getAllCategories, type Category } from "@/lib/category-service"
+import { useEffect } from "react"
+import { useLanguage } from "@/lib/language-context"
+
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Loader2, Save } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
-import { addDoc, collection, serverTimestamp } from "firebase/firestore"
-import { db } from "@/lib/firebase"
-
-const categories = [
-  { value: "prayers", label: "Prayers (Salah)" },
-  { value: "fasting", label: "Fasting (Sawm)" },
-  { value: "zakat", label: "Charity (Zakat)" },
-  { value: "hajj", label: "Pilgrimage (Hajj)" },
-  { value: "business", label: "Business & Finance" },
-  { value: "family", label: "Family & Relationships" },
-  { value: "general", label: "General Questions" },
-]
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 export default function AskQuestionPage() {
   const [title, setTitle] = useState("")
-  const [category, setCategory] = useState("")
-  const [question, setQuestion] = useState("")
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isDraft, setIsDraft] = useState(false)
-  const router = useRouter()
+  const [content, setContent] = useState("")
+  const [categoryId, setCategoryId] = useState("")
+  const [categories, setCategories] = useState<Category[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { user } = useAuth()
+  const router = useRouter()
+  const { toast } = useToast()
+  const { language } = useLanguage()
+  const [selectedLanguage, setSelectedLanguage] = useState(language)
 
-  const handleSubmit = async (e: React.FormEvent, saveAsDraft = false) => {
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const allCategories = await getAllCategories()
+        setCategories(allCategories)
+        if (allCategories.length > 0 && !categoryId) {
+          setCategoryId(allCategories[0].id || "")
+        }
+      } catch (error) {
+        console.error("Error fetching categories:", error)
+        toast({
+          title: language === "en" ? "Error" : "خطأ",
+          description:
+            language === "en"
+              ? "Failed to load categories. Please try again."
+              : "فشل في تحميل الفئات. يرجى المحاولة مرة أخرى.",
+          variant: "destructive",
+        })
+      }
+    }
+
+    fetchCategories()
+  }, [language, toast, categoryId])
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setError("")
-    setSuccess(false)
-    setIsLoading(true)
 
     if (!user) {
-      setError("You must be logged in to submit a question")
-      setIsLoading(false)
+      toast({
+        title: language === "en" ? "Error" : "خطأ",
+        description:
+          language === "en" ? "You must be logged in to ask a question." : "يجب أن تكون مسجلا للدخول لطرح سؤال.",
+        variant: "destructive",
+      })
       return
     }
 
+    if (!title || !content || !categoryId) {
+      toast({
+        title: language === "en" ? "Error" : "خطأ",
+        description: language === "en" ? "Please fill in all fields." : "يرجى ملء جميع الحقول.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+
     try {
-      await addDoc(collection(db, "questions"), {
+      await createQuestion({
         title,
-        category,
-        question,
+        content,
         userId: user.uid,
-        userEmail: user.email,
-        userName: user.displayName,
-        status: saveAsDraft ? "draft" : "pending",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        userName: user.displayName || "Anonymous",
+        categoryId,
+        status: "pending",
+        language: selectedLanguage,
       })
 
-      setSuccess(true)
+      toast({
+        title: language === "en" ? "Success" : "نجاح",
+        description: language === "en" ? "Your question has been submitted for review." : "تم تقديم سؤالك للمراجعة.",
+      })
 
-      // Reset form after successful submission
-      if (!saveAsDraft) {
-        setTitle("")
-        setCategory("")
-        setQuestion("")
-
-        // Redirect to dashboard after a short delay
-        setTimeout(() => {
-          router.push("/dashboard")
-        }, 2000)
-      }
-    } catch (error: any) {
-      setError(error.message || "Failed to submit question")
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Error submitting question:", error)
+      toast({
+        title: language === "en" ? "Error" : "خطأ",
+        description:
+          language === "en"
+            ? "Failed to submit question. Please try again."
+            : "فشل في تقديم السؤال. يرجى المحاولة مرة أخرى.",
+        variant: "destructive",
+      })
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
-  const handleSaveAsDraft = (e: React.FormEvent) => {
-    setIsDraft(true)
-    handleSubmit(e, true)
-  }
+  const pageTitle = language === "en" ? "Ask a Question" : "اطرح سؤالاً"
+  const pageDescription =
+    language === "en"
+      ? "Submit your question to be answered by our scholars."
+      : "قدم سؤالك ليتم الإجابة عليه من قبل علمائنا."
+  const titleLabel = language === "en" ? "Title" : "العنوان"
+  const titlePlaceholder = language === "en" ? "Enter the title of your question" : "أدخل عنوان سؤالك"
+  const contentLabel = language === "en" ? "Question" : "السؤال"
+  const contentPlaceholder = language === "en" ? "Enter your question in detail" : "أدخل سؤالك بالتفصيل"
+  const categoryLabel = language === "en" ? "Category" : "الفئة"
+  const languageLabel = language === "en" ? "Language" : "اللغة"
+  const submitButton = language === "en" ? "Submit Question" : "إرسال السؤال"
+  const submittingButton = language === "en" ? "Submitting..." : "جاري الإرسال..."
 
   return (
-    <div className="container py-10">
-      <Card className="mx-auto max-w-2xl">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Ask a Question</CardTitle>
-          <CardDescription>Submit your Islamic question to be answered by certified scholars</CardDescription>
+    <div className="container max-w-2xl py-10">
+      <Card>
+        <CardHeader>
+          <CardTitle>{pageTitle}</CardTitle>
+          <CardDescription>{pageDescription}</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {success && (
-              <Alert className="border-green-500 bg-green-50 text-green-700">
-                <AlertDescription>
-                  {isDraft
-                    ? "Your question has been saved as a draft."
-                    : "Your question has been submitted successfully and is awaiting review."}
-                </AlertDescription>
-              </Alert>
-            )}
             <div className="space-y-2">
-              <Label htmlFor="title">Question Title</Label>
+              <Label htmlFor="title">{titleLabel}</Label>
               <Input
                 id="title"
-                placeholder="Brief title for your question"
+                placeholder={titlePlaceholder}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={category} onValueChange={setCategory} required>
-                <SelectTrigger id="category">
-                  <SelectValue placeholder="Select a category" />
+              <Label htmlFor="content">{contentLabel}</Label>
+              <Textarea
+                id="content"
+                placeholder={contentPlaceholder}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={6}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">{categoryLabel}</Label>
+              <Select value={categoryId} onValueChange={setCategoryId} required>
+                <SelectTrigger>
+                  <SelectValue placeholder={language === "en" ? "Select a category" : "اختر فئة"} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {category.label}
+                    <SelectItem key={category.id} value={category.id || ""}>
+                      {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="question">Your Question</Label>
-              <Textarea
-                id="question"
-                placeholder="Please provide details of your question..."
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                className="min-h-[200px]"
-                required
-              />
+              <Label>{languageLabel}</Label>
+              <RadioGroup value={selectedLanguage} onValueChange={setSelectedLanguage} className="flex space-x-4">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="en" id="en" />
+                  <Label htmlFor="en">English</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="ur" id="ur" />
+                  <Label htmlFor="ur">اردو</Label>
+                </div>
+              </RadioGroup>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button type="button" variant="outline" onClick={handleSaveAsDraft} disabled={isLoading || success}>
-              {isLoading && isDraft ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save as Draft
-                </>
-              )}
-            </Button>
-            <Button type="submit" disabled={isLoading || success}>
-              {isLoading && !isDraft ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                "Submit Question"
-              )}
+          <CardFooter>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? submittingButton : submitButton}
             </Button>
           </CardFooter>
         </form>
@@ -178,4 +195,3 @@ export default function AskQuestionPage() {
     </div>
   )
 }
-

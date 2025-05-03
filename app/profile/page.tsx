@@ -5,239 +5,130 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Switch } from "@/components/ui/switch"
-import { AlertCircle, Loader2, User, Bell, Shield, Check } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2, AlertCircle, Check, User, Lock, Bell, Shield, GraduationCap } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
+import { doc, getDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import {
-  updateProfile,
-  updateEmail,
-  updatePassword,
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-} from "firebase/auth"
+import { useTranslation } from "@/lib/translation-context"
 
 export default function ProfilePage() {
-  const [displayName, setDisplayName] = useState("")
-  const [email, setEmail] = useState("")
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
+  const [profile, setProfile] = useState<any>({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [userPreferences, setUserPreferences] = useState({
-    emailNotifications: true,
-    questionAnswered: true,
-    questionApproved: true,
-    systemAnnouncements: true,
-  })
 
+  const { user, userRole } = useAuth()
   const router = useRouter()
-  const { user } = useAuth()
+  const { t } = useTranslation()
 
   useEffect(() => {
-    if (user) {
-      setDisplayName(user.displayName || "")
-      setEmail(user.email || "")
-
-      // Fetch user preferences from Firestore
-      const fetchUserPreferences = async () => {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid))
-          if (userDoc.exists()) {
-            const userData = userDoc.data()
-            if (userData.preferences) {
-              setUserPreferences(userData.preferences)
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching user preferences:", error)
-        }
+    const fetchProfile = async () => {
+      if (!user) {
+        router.push("/auth/login")
+        return
       }
 
-      fetchUserPreferences()
-    }
-  }, [user])
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid))
 
-  const handleProfileUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
+        if (userDoc.exists()) {
+          setProfile({
+            displayName: userDoc.data().displayName || user.displayName || "",
+            email: userDoc.data().email || user.email || "",
+            bio: userDoc.data().bio || "",
+            location: userDoc.data().location || "",
+            website: userDoc.data().website || "",
+            phoneNumber: userDoc.data().phoneNumber || "",
+            emailNotifications: userDoc.data().emailNotifications !== false,
+            pushNotifications: userDoc.data().pushNotifications !== false,
+          })
+        } else {
+          setProfile({
+            displayName: user.displayName || "",
+            email: user.email || "",
+            bio: "",
+            location: "",
+            website: "",
+            phoneNumber: "",
+            emailNotifications: true,
+            pushNotifications: true,
+          })
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error)
+        setError("Failed to load profile data")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProfile()
+  }, [user, router])
+
+  const handleUpdateProfile = async () => {
+    if (!user) return
+
+    setSaving(true)
     setError("")
     setSuccess("")
-    setIsLoading(true)
-
-    if (!user) {
-      setError("You must be logged in to update your profile")
-      setIsLoading(false)
-      return
-    }
 
     try {
-      // Update display name in Firebase Auth
-      await updateProfile(user, { displayName })
-
-      // Update user document in Firestore
-      await setDoc(
-        doc(db, "users", user.uid),
-        {
-          displayName,
-          email: user.email,
-          updatedAt: new Date(),
-        },
-        { merge: true },
-      )
-
-      setSuccess("Profile updated successfully")
-    } catch (error: any) {
-      setError(error.message || "Failed to update profile")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleEmailUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setSuccess("")
-    setIsLoading(true)
-
-    if (!user) {
-      setError("You must be logged in to update your email")
-      setIsLoading(false)
-      return
-    }
-
-    if (!currentPassword) {
-      setError("Current password is required to update email")
-      setIsLoading(false)
-      return
-    }
-
-    try {
-      // Re-authenticate user
-      const credential = EmailAuthProvider.credential(user.email || "", currentPassword)
-      await reauthenticateWithCredential(user, credential)
-
-      // Update email in Firebase Auth
-      await updateEmail(user, email)
-
-      // Update user document in Firestore
       await updateDoc(doc(db, "users", user.uid), {
-        email,
+        displayName: profile.displayName,
+        bio: profile.bio,
+        location: profile.location,
+        website: profile.website,
+        phoneNumber: profile.phoneNumber,
+        emailNotifications: profile.emailNotifications,
+        pushNotifications: profile.pushNotifications,
         updatedAt: new Date(),
       })
 
-      setSuccess("Email updated successfully")
-      setCurrentPassword("")
-    } catch (error: any) {
-      setError(error.message || "Failed to update email")
+      setSuccess("Profile updated successfully")
+    } catch (error) {
+      console.error("Error updating profile:", error)
+      setError("Failed to update profile")
     } finally {
-      setIsLoading(false)
+      setSaving(false)
     }
   }
 
-  const handlePasswordUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setSuccess("")
-    setIsLoading(true)
-
-    if (!user) {
-      setError("You must be logged in to update your password")
-      setIsLoading(false)
-      return
-    }
-
-    if (!currentPassword) {
-      setError("Current password is required")
-      setIsLoading(false)
-      return
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError("New passwords do not match")
-      setIsLoading(false)
-      return
-    }
-
-    // Password strength validation
-    const hasMinLength = newPassword.length >= 8
-    const hasUppercase = /[A-Z]/.test(newPassword)
-    const hasLowercase = /[a-z]/.test(newPassword)
-    const hasNumber = /[0-9]/.test(newPassword)
-    const hasSpecialChar = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(newPassword)
-
-    if (!(hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecialChar)) {
-      setError("New password does not meet strength requirements")
-      setIsLoading(false)
-      return
-    }
-
-    try {
-      // Re-authenticate user
-      const credential = EmailAuthProvider.credential(user.email || "", currentPassword)
-      await reauthenticateWithCredential(user, credential)
-
-      // Update password in Firebase Auth
-      await updatePassword(user, newPassword)
-
-      setSuccess("Password updated successfully")
-      setCurrentPassword("")
-      setNewPassword("")
-      setConfirmPassword("")
-    } catch (error: any) {
-      setError(error.message || "Failed to update password")
-    } finally {
-      setIsLoading(false)
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target
+    setProfile({
+      ...profile,
+      [name]: type === "checkbox" ? checked : value,
+    })
   }
 
-  const handlePreferencesUpdate = async () => {
-    setError("")
-    setSuccess("")
-    setIsLoading(true)
-
-    if (!user) {
-      setError("You must be logged in to update preferences")
-      setIsLoading(false)
-      return
-    }
-
-    try {
-      // Update user preferences in Firestore
-      await setDoc(
-        doc(db, "users", user.uid),
-        {
-          preferences: userPreferences,
-          updatedAt: new Date(),
-        },
-        { merge: true },
-      )
-
-      setSuccess("Preferences updated successfully")
-    } catch (error: any) {
-      setError(error.message || "Failed to update preferences")
-    } finally {
-      setIsLoading(false)
-    }
+  if (loading) {
+    return (
+      <div className="container flex h-[calc(100vh-200px)] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   if (!user) {
     return (
-      <div className="container flex h-[calc(100vh-200px)] items-center justify-center">
-        <Card className="w-full max-w-md text-center">
+      <div className="container py-10">
+        <Card>
           <CardHeader>
             <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>Please sign in to access your profile</CardDescription>
+            <CardDescription>Please sign in to view your profile</CardDescription>
           </CardHeader>
-          <CardFooter className="flex justify-center">
-            <Button onClick={() => router.push("/auth/login")}>Sign In</Button>
+          <CardFooter>
+            <Button onClick={() => router.push("/auth/login")} className="w-full">
+              Sign In
+            </Button>
           </CardFooter>
         </Card>
       </div>
@@ -246,269 +137,320 @@ export default function ProfilePage() {
 
   return (
     <div className="container py-10">
-      <h1 className="mb-8 text-3xl font-bold">Your Profile</h1>
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Profile</h1>
+          <Button onClick={() => router.push("/dashboard")}>Back to Dashboard</Button>
+        </div>
 
-      <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="profile">
-            <User className="mr-2 h-4 w-4" />
-            Profile
-          </TabsTrigger>
-          <TabsTrigger value="security">
-            <Shield className="mr-2 h-4 w-4" />
-            Security
-          </TabsTrigger>
-          <TabsTrigger value="notifications">
-            <Bell className="mr-2 h-4 w-4" />
-            Notifications
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile">
+        <div className="grid gap-8 md:grid-cols-[1fr_3fr]">
+          {/* Profile Sidebar */}
           <Card>
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Update your account profile information</CardDescription>
-            </CardHeader>
-            <form onSubmit={handleProfileUpdate}>
-              <CardContent className="space-y-4">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-                {success && (
-                  <Alert className="border-green-500 bg-green-50 text-green-700">
-                    <Check className="h-4 w-4" />
-                    <AlertDescription>{success}</AlertDescription>
-                  </Alert>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="displayName">Full Name</Label>
-                  <Input
-                    id="displayName"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    required
-                  />
+            <CardContent className="p-6">
+              <div className="flex flex-col items-center space-y-4">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage src={user.photoURL || ""} alt={profile.displayName} />
+                  <AvatarFallback className="text-2xl">
+                    {profile.displayName?.charAt(0) || user.email?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-center">
+                  <h2 className="text-xl font-bold">{profile.displayName}</h2>
+                  <p className="text-sm text-muted-foreground">{profile.email}</p>
+                  {userRole && <Badge className="mt-2">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</Badge>}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="profileEmail">Email</Label>
-                  <Input id="profileEmail" value={email} disabled className="bg-muted" />
-                  <p className="text-xs text-muted-foreground">To change your email address, go to the Security tab.</p>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save Changes"
-                  )}
+                <Button variant="outline" className="w-full" onClick={() => router.push("/profile/edit")}>
+                  Edit Profile
                 </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </TabsContent>
 
-        <TabsContent value="security">
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Update Email</CardTitle>
-                <CardDescription>Change your account email address</CardDescription>
-              </CardHeader>
-              <form onSubmit={handleEmailUpdate}>
-                <CardContent className="space-y-4">
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-                  {success && (
-                    <Alert className="border-green-500 bg-green-50 text-green-700">
-                      <Check className="h-4 w-4" />
-                      <AlertDescription>{success}</AlertDescription>
-                    </Alert>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="email">New Email</Label>
-                    <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="currentPasswordEmail">Current Password</Label>
-                    <Input
-                      id="currentPasswordEmail"
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      "Update Email"
-                    )}
+                {/* Admin Panel Link */}
+                {userRole === "admin" && (
+                  <Button
+                    variant="default"
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    onClick={() => router.push("/admin/dashboard")}
+                  >
+                    <Shield className="mr-2 h-4 w-4" />
+                    Go to Admin Panel
                   </Button>
-                </CardFooter>
-              </form>
-            </Card>
+                )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Change Password</CardTitle>
-                <CardDescription>Update your account password</CardDescription>
-              </CardHeader>
-              <form onSubmit={handlePasswordUpdate}>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      "Change Password"
-                    )}
+                {/* Scholar Panel Link */}
+                {userRole === "scholar" && (
+                  <Button
+                    variant="default"
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    onClick={() => router.push("/scholar/dashboard")}
+                  >
+                    <GraduationCap className="mr-2 h-4 w-4" />
+                    Go to Scholar Panel
                   </Button>
-                </CardFooter>
-              </form>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>Manage how you receive notifications</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              {success && (
-                <Alert className="border-green-500 bg-green-50 text-green-700">
-                  <Check className="h-4 w-4" />
-                  <AlertDescription>{success}</AlertDescription>
-                </Alert>
-              )}
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Email Notifications</h4>
-                    <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-                  </div>
-                  <Switch
-                    checked={userPreferences.emailNotifications}
-                    onCheckedChange={(checked) =>
-                      setUserPreferences({ ...userPreferences, emailNotifications: checked })
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Question Answered</h4>
-                    <p className="text-sm text-muted-foreground">Get notified when your question is answered</p>
-                  </div>
-                  <Switch
-                    checked={userPreferences.questionAnswered}
-                    onCheckedChange={(checked) => setUserPreferences({ ...userPreferences, questionAnswered: checked })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Question Approved/Rejected</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified when your question is approved or rejected
-                    </p>
-                  </div>
-                  <Switch
-                    checked={userPreferences.questionApproved}
-                    onCheckedChange={(checked) => setUserPreferences({ ...userPreferences, questionApproved: checked })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">System Announcements</h4>
-                    <p className="text-sm text-muted-foreground">Receive important system announcements</p>
-                  </div>
-                  <Switch
-                    checked={userPreferences.systemAnnouncements}
-                    onCheckedChange={(checked) =>
-                      setUserPreferences({ ...userPreferences, systemAnnouncements: checked })
-                    }
-                  />
-                </div>
+                )}
               </div>
             </CardContent>
-            <CardFooter>
-              <Button onClick={handlePreferencesUpdate} disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  "Save Preferences"
-                )}
-              </Button>
-            </CardFooter>
           </Card>
-        </TabsContent>
-      </Tabs>
+
+          {/* Profile Content */}
+          <div className="space-y-6">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {success && (
+              <Alert className="border-green-500 bg-green-50 text-green-700">
+                <Check className="h-4 w-4" />
+                <AlertDescription>{success}</AlertDescription>
+              </Alert>
+            )}
+
+            <Tabs defaultValue="profile">
+              <TabsList className="mb-4">
+                <TabsTrigger value="profile">
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </TabsTrigger>
+                <TabsTrigger value="security">
+                  <Lock className="mr-2 h-4 w-4" />
+                  Security
+                </TabsTrigger>
+                <TabsTrigger value="notifications">
+                  <Bell className="mr-2 h-4 w-4" />
+                  Notifications
+                </TabsTrigger>
+                {userRole === "admin" && (
+                  <TabsTrigger value="admin">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Admin
+                  </TabsTrigger>
+                )}
+                {userRole === "scholar" && (
+                  <TabsTrigger value="scholar">
+                    <GraduationCap className="mr-2 h-4 w-4" />
+                    Scholar
+                  </TabsTrigger>
+                )}
+              </TabsList>
+
+              <TabsContent value="profile">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Profile Information</CardTitle>
+                    <CardDescription>Update your personal information</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="displayName">Full Name</Label>
+                      <Input
+                        id="displayName"
+                        name="displayName"
+                        value={profile.displayName}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input id="email" name="email" value={profile.email} disabled />
+                      <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bio">Bio</Label>
+                      <Input
+                        id="bio"
+                        name="bio"
+                        value={profile.bio}
+                        onChange={handleInputChange}
+                        placeholder="Tell us about yourself"
+                      />
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="location">Location</Label>
+                        <Input
+                          id="location"
+                          name="location"
+                          value={profile.location}
+                          onChange={handleInputChange}
+                          placeholder="City, Country"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="website">Website</Label>
+                        <Input
+                          id="website"
+                          name="website"
+                          value={profile.website}
+                          onChange={handleInputChange}
+                          placeholder="https://example.com"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phoneNumber">Phone Number</Label>
+                      <Input
+                        id="phoneNumber"
+                        name="phoneNumber"
+                        value={profile.phoneNumber}
+                        onChange={handleInputChange}
+                        placeholder="+1234567890"
+                      />
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button onClick={handleUpdateProfile} disabled={saving}>
+                      {saving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="security">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Security Settings</CardTitle>
+                    <CardDescription>Manage your account security</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Password</Label>
+                      <div className="flex items-center justify-between rounded-md border p-3">
+                        <div>
+                          <p className="font-medium">Change Password</p>
+                          <p className="text-sm text-muted-foreground">Update your password</p>
+                        </div>
+                        <Button variant="outline" onClick={() => router.push("/auth/forgot-password")}>
+                          Change
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="notifications">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Notification Settings</CardTitle>
+                    <CardDescription>Manage how you receive notifications</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between space-x-2">
+                      <Label htmlFor="emailNotifications" className="flex flex-col space-y-1">
+                        <span>Email Notifications</span>
+                        <span className="font-normal text-sm text-muted-foreground">
+                          Receive notifications via email
+                        </span>
+                      </Label>
+                      <input
+                        type="checkbox"
+                        id="emailNotifications"
+                        name="emailNotifications"
+                        checked={profile.emailNotifications}
+                        onChange={handleInputChange}
+                        className="h-4 w-4"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between space-x-2">
+                      <Label htmlFor="pushNotifications" className="flex flex-col space-y-1">
+                        <span>Push Notifications</span>
+                        <span className="font-normal text-sm text-muted-foreground">
+                          Receive notifications in the browser
+                        </span>
+                      </Label>
+                      <input
+                        type="checkbox"
+                        id="pushNotifications"
+                        name="pushNotifications"
+                        checked={profile.pushNotifications}
+                        onChange={handleInputChange}
+                        className="h-4 w-4"
+                      />
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button onClick={handleUpdateProfile} disabled={saving}>
+                      {saving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
+              {userRole === "admin" && (
+                <TabsContent value="admin">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Admin Settings</CardTitle>
+                      <CardDescription>Manage admin-specific settings</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Button variant="default" onClick={() => router.push("/admin/dashboard")} className="w-full">
+                          <Shield className="mr-2 h-4 w-4" />
+                          Admin Dashboard
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push("/admin/questions")} className="w-full">
+                          Manage Questions
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push("/admin/users")} className="w-full">
+                          Manage Users
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push("/admin/categories")} className="w-full">
+                          Manage Categories
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
+
+              {userRole === "scholar" && (
+                <TabsContent value="scholar">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Scholar Settings</CardTitle>
+                      <CardDescription>Manage scholar-specific settings</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Button
+                          variant="default"
+                          onClick={() => router.push("/scholar/dashboard")}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          <GraduationCap className="mr-2 h-4 w-4" />
+                          Scholar Dashboard
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push("/scholar/questions")} className="w-full">
+                          View Assigned Questions
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push("/scholar/answered")} className="w-full">
+                          View Answered Questions
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
+            </Tabs>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
-

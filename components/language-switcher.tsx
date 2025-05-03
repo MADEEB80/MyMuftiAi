@@ -1,63 +1,29 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useLanguage } from "@/lib/language-context"
 import { Globe } from "lucide-react"
+import { useCallback } from "react"
 
-type Language = {
-  code: string
-  name: string
-  dir: "ltr" | "rtl"
-}
-
-const languages: Language[] = [
-  { code: "en", name: "English", dir: "ltr" },
-  { code: "ar", name: "العربية", dir: "rtl" },
-  { code: "ur", name: "اردو", dir: "rtl" },
-]
-
+// Language switcher component that toggles between English and Urdu
 export default function LanguageSwitcher() {
-  const [currentLang, setCurrentLang] = useState<Language>(languages[0])
+  const { language, setLanguage, isRTL } = useLanguage()
 
-  useEffect(() => {
-    // Set initial language based on HTML dir attribute
-    const htmlDir = document.documentElement.dir
-    const initialLang = languages.find((lang) => lang.dir === htmlDir) || languages[0]
-    setCurrentLang(initialLang)
-  }, [])
-
-  const handleLanguageChange = (lang: Language) => {
-    // Update HTML dir attribute
-    document.documentElement.dir = lang.dir
-    document.documentElement.lang = lang.code
-
-    // Update state
-    setCurrentLang(lang)
-
-    // You could also store this preference in localStorage
-    localStorage.setItem("preferredLanguage", lang.code)
-  }
+  // Toggle language between English and Urdu
+  const toggleLanguage = useCallback(() => {
+    setLanguage(language === "en" ? "ur" : "en")
+  }, [language, setLanguage])
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Globe className="h-5 w-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {languages.map((lang) => (
-          <DropdownMenuItem
-            key={lang.code}
-            className={`cursor-pointer ${currentLang.code === lang.code ? "font-bold" : ""}`}
-            onClick={() => handleLanguageChange(lang)}
-          >
-            {lang.name}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={toggleLanguage}
+      className="flex items-center gap-1"
+      title={language === "en" ? "Switch to Urdu" : "انگریزی میں تبدیل کریں"}
+    >
+      <Globe className="h-4 w-4" />
+      <span>{language === "en" ? "اردو" : "English"}</span>
+    </Button>
   )
 }
-

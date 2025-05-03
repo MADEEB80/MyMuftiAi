@@ -1,152 +1,344 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { usePathname } from "next/navigation"
-import { useState } from "react"
-import { Menu, X } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useAuth } from "@/lib/auth-context"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import NotificationBell from "@/components/notification-bell"
 import LanguageSwitcher from "@/components/language-switcher"
+import { useAuth } from "@/lib/auth-context"
+import { useTranslation } from "@/lib/translation-context"
+import { Menu, X, Home, User, LogOut, Settings, Shield, GraduationCap } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-export default function Header() {
+export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { user, signOut } = useAuth()
+  const router = useRouter()
   const pathname = usePathname()
-  const { user, userRole, signOut } = useAuth()
+  const { t } = useTranslation()
 
-  const routes = [
-    { href: "/", label: "Home" },
-    { href: "/search", label: "Search" },
-    { href: "/categories", label: "Categories" },
-    { href: "/about", label: "About" },
-  ]
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMenuOpen(false)
+  }, [pathname])
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      router.push("/")
+    } catch (error) {
+      console.error("Error signing out:", error)
+    }
+  }
+
+  const isActive = (path: string) => {
+    if (path === "/" && pathname === "/") return true
+    if (path !== "/" && pathname.startsWith(path)) return true
+    return false
+  }
+
+  // Determine user role
+  const userRole = user?.role || "user"
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-white">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold">MyMufti.com</span>
+          <Link href="/" className="flex items-center">
+            <span className="text-xl font-bold text-green-600">MyMufti</span>
+            <span className="text-xl font-bold text-gray-700">.com</span>
           </Link>
-          <nav className="hidden md:flex md:gap-6">
-            {routes.map((route) => (
-              <Link
-                key={route.href}
-                href={route.href}
-                className={cn(
-                  "text-sm font-medium transition-colors hover:text-primary",
-                  pathname === route.href ? "text-primary" : "text-muted-foreground",
-                )}
-              >
-                {route.label}
-              </Link>
-            ))}
-          </nav>
         </div>
-        <div className="hidden md:flex md:items-center md:gap-4">
+
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center gap-6">
+          <Link
+            href="/"
+            className={cn(
+              "text-sm font-medium transition-colors hover:text-green-600",
+              isActive("/") ? "text-green-600" : "text-gray-600",
+            )}
+          >
+            {t("home")}
+          </Link>
+          <Link
+            href="/categories"
+            className={cn(
+              "text-sm font-medium transition-colors hover:text-green-600",
+              isActive("/categories") ? "text-green-600" : "text-gray-600",
+            )}
+          >
+            {t("categories")}
+          </Link>
+          <Link
+            href="/search"
+            className={cn(
+              "text-sm font-medium transition-colors hover:text-green-600",
+              isActive("/search") ? "text-green-600" : "text-gray-600",
+            )}
+          >
+            {t("search")}
+          </Link>
+          <Link
+            href="/dashboard/ask"
+            className={cn(
+              "text-sm font-medium transition-colors hover:text-green-600",
+              isActive("/dashboard/ask") ? "text-green-600" : "text-gray-600",
+            )}
+          >
+            {t("ask_a_question")}
+          </Link>
+        </nav>
+
+        <div className="flex items-center gap-4">
+          <LanguageSwitcher />
+
           {user ? (
             <>
-              <LanguageSwitcher />
-              <NotificationBell />
-              {userRole === "admin" && (
-                <Link href="/admin">
-                  <Button variant="outline">Admin Panel</Button>
-                </Link>
-              )}
-              {userRole === "scholar" && (
-                <Link href="/scholar">
-                  <Button variant="outline">Scholar Dashboard</Button>
-                </Link>
-              )}
-              <Link href="/dashboard">
-                <Button variant="outline">Dashboard</Button>
-              </Link>
-              <Button onClick={() => signOut()}>Sign Out</Button>
+              {/* Notification Bell */}
+              <div className="hidden md:block">
+                <NotificationBell />
+              </div>
+
+              {/* User Menu */}
+              <div className="relative">
+                <div
+                  className="h-8 w-8 rounded-full cursor-pointer overflow-hidden"
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.photoURL || ""} alt={user.displayName || "User"} />
+                    <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0) || "U"}</AvatarFallback>
+                  </Avatar>
+                </div>
+
+                {/* Dropdown Menu */}
+                {isMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="py-1">
+                      {/* User info */}
+                      <div className="px-4 py-2 border-b">
+                        <p className="text-sm font-medium">{user.displayName || "User"}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+
+                      {/* Menu items */}
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <Home className="mr-2 h-4 w-4" />
+                        Dashboard
+                      </Link>
+
+                      <Link
+                        href="/profile"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        Profile
+                      </Link>
+
+                      {/* Admin Panel Link */}
+                      {userRole === "admin" && (
+                        <Link
+                          href="/admin/dashboard"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <Shield className="mr-2 h-4 w-4" />
+                          Admin Panel
+                        </Link>
+                      )}
+
+                      {/* Scholar Panel Link */}
+                      {userRole === "scholar" && (
+                        <Link
+                          href="/scholar/dashboard"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <GraduationCap className="mr-2 h-4 w-4" />
+                          Scholar Panel
+                        </Link>
+                      )}
+
+                      <Link
+                        href="/profile/edit"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                      </Link>
+
+                      {/* Logout */}
+                      <div className="border-t border-gray-100 mt-1">
+                        <button
+                          onClick={() => {
+                            setIsMenuOpen(false)
+                            handleSignOut()
+                          }}
+                          className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Log out
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
-            <>
-              <LanguageSwitcher />
-              <Link href="/auth/login">
-                <Button variant="outline">Sign In</Button>
-              </Link>
-              <Link href="/auth/register">
-                <Button>Sign Up</Button>
-              </Link>
-            </>
-          )}
-        </div>
-        <button className="block md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-          {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
-      </div>
-      {isMenuOpen && (
-        <div className="container pb-4 md:hidden">
-          <nav className="flex flex-col gap-4">
-            {routes.map((route) => (
-              <Link
-                key={route.href}
-                href={route.href}
-                className={cn(
-                  "text-sm font-medium transition-colors hover:text-primary",
-                  pathname === route.href ? "text-primary" : "text-muted-foreground",
-                )}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {route.label}
-              </Link>
-            ))}
-            <div className="flex items-center gap-2">
-              <LanguageSwitcher />
-              {user && <NotificationBell />}
+            <div className="hidden md:flex items-center gap-2">
+              <Button asChild variant="ghost">
+                <Link href="/auth/login">{t("login")}</Link>
+              </Button>
+              <Button asChild className="bg-green-600 hover:bg-green-700">
+                <Link href="/auth/register">{t("register")}</Link>
+              </Button>
             </div>
-            {user ? (
+          )}
+
+          {/* Mobile menu button */}
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            <span className="sr-only">Toggle menu</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Mobile Navigation */}
+      {isMenuOpen && (
+        <div className="md:hidden">
+          <div className="space-y-1 px-4 pb-3 pt-2">
+            <Link
+              href="/"
+              className={cn(
+                "flex items-center py-2 text-base font-medium",
+                isActive("/") ? "text-green-600" : "text-gray-600 hover:text-green-600",
+              )}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <Home className="mr-2 h-4 w-4" />
+              {t("home")}
+            </Link>
+
+            <Link
+              href="/categories"
+              className={cn(
+                "flex items-center py-2 text-base font-medium",
+                isActive("/categories") ? "text-green-600" : "text-gray-600 hover:text-green-600",
+              )}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {t("categories")}
+            </Link>
+
+            <Link
+              href="/search"
+              className={cn(
+                "flex items-center py-2 text-base font-medium",
+                isActive("/search") ? "text-green-600" : "text-gray-600 hover:text-green-600",
+              )}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {t("search")}
+            </Link>
+
+            <Link
+              href="/dashboard/ask"
+              className={cn(
+                "flex items-center py-2 text-base font-medium",
+                isActive("/dashboard/ask") ? "text-green-600" : "text-gray-600 hover:text-green-600",
+              )}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {t("ask_a_question")}
+            </Link>
+
+            {user && (
               <>
-                {userRole === "admin" && (
-                  <Link href="/admin" onClick={() => setIsMenuOpen(false)}>
-                    <Button variant="outline" className="w-full">
-                      Admin Panel
-                    </Button>
-                  </Link>
-                )}
-                {userRole === "scholar" && (
-                  <Link href="/scholar" onClick={() => setIsMenuOpen(false)}>
-                    <Button variant="outline" className="w-full">
-                      Scholar Dashboard
-                    </Button>
-                  </Link>
-                )}
-                <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="outline" className="w-full">
+                <div className="pt-2 border-t mt-2">
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center py-2 text-base font-medium text-gray-600 hover:text-green-600"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Home className="mr-2 h-4 w-4" />
                     Dashboard
-                  </Button>
-                </Link>
+                  </Link>
+
+                  <Link
+                    href="/profile"
+                    className="flex items-center py-2 text-base font-medium text-gray-600 hover:text-green-600"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
+
+                  {/* Admin Panel Link */}
+                  {userRole === "admin" && (
+                    <Link
+                      href="/admin/dashboard"
+                      className="flex items-center py-2 text-base font-medium text-gray-600 hover:text-green-600"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Shield className="mr-2 h-4 w-4" />
+                      Admin Panel
+                    </Link>
+                  )}
+
+                  {/* Scholar Panel Link */}
+                  {userRole === "scholar" && (
+                    <Link
+                      href="/scholar/dashboard"
+                      className="flex items-center py-2 text-base font-medium text-gray-600 hover:text-green-600"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <GraduationCap className="mr-2 h-4 w-4" />
+                      Scholar Panel
+                    </Link>
+                  )}
+                </div>
+
                 <Button
+                  variant="destructive"
+                  className="w-full mt-4"
                   onClick={() => {
-                    signOut()
+                    handleSignOut()
                     setIsMenuOpen(false)
                   }}
-                  className="w-full"
                 >
-                  Sign Out
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Log out
                 </Button>
               </>
-            ) : (
-              <>
-                <Link href="/auth/login" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="outline" className="w-full">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/auth/register" onClick={() => setIsMenuOpen(false)}>
-                  <Button className="w-full">Sign Up</Button>
-                </Link>
-              </>
             )}
-          </nav>
+
+            {!user && (
+              <div className="pt-4 flex flex-col space-y-2">
+                <Button asChild variant="outline">
+                  <Link href="/auth/login" onClick={() => setIsMenuOpen(false)}>
+                    {t("login")}
+                  </Link>
+                </Button>
+                <Button asChild className="bg-green-600 hover:bg-green-700">
+                  <Link href="/auth/register" onClick={() => setIsMenuOpen(false)}>
+                    {t("register")}
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </header>
   )
 }
-

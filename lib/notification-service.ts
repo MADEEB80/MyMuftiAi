@@ -117,4 +117,3 @@ export const markNotificationAsRead = async (notificationId: string) => {
     return false
   }
 }
-

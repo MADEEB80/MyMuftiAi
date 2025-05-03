@@ -1,91 +1,94 @@
+"use client"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, BookOpen, MessageCircle, Search } from "lucide-react"
-import FeatureCard from "@/components/feature-card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import CategoryBrowser from "@/components/category-browser"
+import { useTranslation } from "@/lib/translation-context"
+import { useLanguage } from "@/lib/language-context"
 
 export default function Home() {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
+  const isRTL = language === "ur"
+
   return (
-    <div className="flex min-h-screen flex-col">
+    <main className={`flex min-h-screen flex-col ${isRTL ? "rtl" : "ltr"}`}>
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-primary/20 to-background pt-16 pb-24 md:pt-24 md:pb-32">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center space-y-4 text-center">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl">
-                Welcome to MyMufti.com
-              </h1>
-              <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                Your trusted platform for Islamic questions and scholarly answers from certified Muftis.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 min-[400px]:flex-row">
-              <Link href="/auth/register">
-                <Button size="lg" className="w-full">
-                  Get Started
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/search">
-                <Button size="lg" variant="outline" className="w-full">
-                  Browse Questions
-                </Button>
-              </Link>
-            </div>
+      <section className="bg-gradient-to-b from-white to-gray-100 py-20">
+        <div className="container mx-auto px-4 text-center">
+          <h1 className="mb-6 text-4xl font-bold md:text-5xl lg:text-6xl">{t("home.hero.title")}</h1>
+          <p className="mx-auto mb-8 max-w-2xl text-lg text-gray-600">{t("home.hero.subtitle")}</p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link href="/dashboard/ask">
+              <Button size="lg">{t("home.hero.askButton")}</Button>
+            </Link>
+            <Link href="/categories">
+              <Button variant="outline" size="lg">
+                {t("home.hero.browseButton")}
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="container space-y-12 py-12 md:py-16 lg:py-24">
-        <div className="mx-auto flex max-w-[58rem] flex-col items-center space-y-4 text-center">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">Platform Features</h2>
-          <p className="max-w-[85%] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-            MyMufti.com provides a comprehensive Islamic knowledge base with reliable scholarly responses.
-          </p>
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-12 text-center text-3xl font-bold">{t("home.features.title")}</h2>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("home.features.feature1.title")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>{t("home.features.feature1.description")}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("home.features.feature2.title")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>{t("home.features.feature2.description")}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("home.features.feature3.title")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>{t("home.features.feature3.description")}</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-        <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:max-w-[64rem] md:grid-cols-3">
-          <FeatureCard
-            icon={<MessageCircle className="h-10 w-10" />}
-            title="Ask Questions"
-            description="Submit your Islamic questions and receive scholarly answers from certified Muftis."
-          />
-          <FeatureCard
-            icon={<Search className="h-10 w-10" />}
-            title="Search Knowledge Base"
-            description="Browse through our extensive database of previously answered questions."
-          />
-          <FeatureCard
-            icon={<BookOpen className="h-10 w-10" />}
-            title="Categorized Content"
-            description="Find answers organized by topics like prayers, fasting, business ethics, and more."
-          />
+      </section>
+
+      {/* Categories Section */}
+      <section className="bg-gray-50 py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-12 text-center text-3xl font-bold">{t("home.categories.title")}</h2>
+          <CategoryBrowser />
+          <div className="mt-10 text-center">
+            <Link href="/categories">
+              <Button variant="outline">{t("home.categories.viewAllButton")}</Button>
+            </Link>
+          </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="bg-primary/5 py-12 md:py-16 lg:py-20">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center justify-center space-y-4 text-center">
-            <div className="space-y-2">
-              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">Ready to Get Answers?</h2>
-              <p className="mx-auto max-w-[600px] text-muted-foreground md:text-xl">
-                Join our community today and get reliable Islamic guidance from qualified scholars.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 min-[400px]:flex-row">
-              <Link href="/auth/register">
-                <Button size="lg">Create an Account</Button>
-              </Link>
-              <Link href="/auth/login">
-                <Button size="lg" variant="outline">
-                  Sign In
-                </Button>
-              </Link>
-            </div>
-          </div>
+      <section className="bg-primary py-16 text-white">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="mb-6 text-3xl font-bold">{t("home.cta.title")}</h2>
+          <p className="mx-auto mb-8 max-w-2xl text-lg">{t("home.cta.subtitle")}</p>
+          <Link href="/dashboard/ask">
+            <Button variant="secondary" size="lg">
+              {t("home.cta.button")}
+            </Button>
+          </Link>
         </div>
       </section>
-    </div>
+    </main>
   )
 }
-
