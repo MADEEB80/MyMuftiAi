@@ -13,11 +13,22 @@ export interface Answer {
   references?: string[]
 }
 
+// Safely get collection reference
+const getCollection = (collectionName: string) => {
+  if (!db) {
+    throw new Error("Firestore database not initialized")
+  }
+  return collection(db, collectionName)
+}
+
+// Collection reference
+const answersCollection = () => getCollection("answers")
+
 // Create a new answer
 export async function createAnswer(answerData: Omit<Answer, "id" | "createdAt" | "updatedAt">): Promise<string> {
   try {
     const now = new Date()
-    const docRef = await addDoc(collection(db, "answers"), {
+    const docRef = await addDoc(answersCollection(), {
       ...answerData,
       createdAt: now,
       updatedAt: now,
@@ -34,7 +45,7 @@ export async function createAnswer(answerData: Omit<Answer, "id" | "createdAt" |
 export async function getAnswersByQuestionId(questionId: string): Promise<Answer[]> {
   try {
     // Use only the where clause without orderBy to avoid requiring the composite index
-    const q = query(collection(db, "answers"), where("questionId", "==", questionId))
+    const q = query(answersCollection(), where("questionId", "==", questionId))
     const querySnapshot = await getDocs(q)
 
     // Sort the results in memory instead
@@ -60,7 +71,7 @@ export async function getAnswersByQuestionId(questionId: string): Promise<Answer
 export async function getAnswersByQuestionIdAndLanguage(questionId: string, language: string): Promise<Answer[]> {
   try {
     // First get all answers for the question
-    const q = query(collection(db, "answers"), where("questionId", "==", questionId))
+    const q = query(answersCollection(), where("questionId", "==", questionId))
     const querySnapshot = await getDocs(q)
 
     // Then filter by language and sort in memory
@@ -136,7 +147,7 @@ export async function deleteAnswer(id: string): Promise<void> {
 // Get answers by scholar ID
 export async function getAnswersByScholarId(scholarId: string): Promise<Answer[]> {
   try {
-    const q = query(collection(db, "answers"), where("scholarId", "==", scholarId))
+    const q = query(answersCollection(), where("scholarId", "==", scholarId))
     const querySnapshot = await getDocs(q)
 
     const answers = querySnapshot.docs.map(

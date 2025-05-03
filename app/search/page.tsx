@@ -18,7 +18,7 @@ import { motion } from "framer-motion"
 
 // Search page component
 export default function SearchPage() {
-  const { language, isRTL } = useLanguage()
+  const { language, isRTL, t } = useLanguage()
   const searchParams = useSearchParams()
   const initialQuery = searchParams.get("q") || ""
 
@@ -126,9 +126,33 @@ export default function SearchPage() {
     },
   }
 
+  // Translations
+  const pageTitle = language === "ur" ? "سوالات تلاش کریں" : "Search Questions"
+  const searchPlaceholder = language === "ur" ? "اپنا سوال تلاش کریں..." : "Search for questions..."
+  const searchingText = language === "ur" ? "تلاش کر رہا ہے..." : "Searching..."
+  const searchButtonText = language === "ur" ? "تلاش کریں" : "Search"
+  const resultsFoundText =
+    language === "ur"
+      ? `${filteredAndSortedResults.length} نتائج ملے`
+      : `Found ${filteredAndSortedResults.length} results`
+  const sortByText = language === "ur" ? "ترتیب دیں:" : "Sort by:"
+  const relevanceText = language === "ur" ? "متعلقہ" : "Relevance"
+  const dateText = language === "ur" ? "تاریخ" : "Date"
+  const allText = language === "ur" ? "تمام" : "All"
+  const noResultsFoundText = language === "ur" ? "کوئی نتیجہ نہیں ملا" : "No results found"
+  const checkSearchText =
+    language === "ur"
+      ? "براہ کرم اپنی تلاش کو دوبارہ چیک کریں یا کوئی اور مطلب استعمال کریں"
+      : "Please check your search or try different terms"
+  const searchForQuestionsText = language === "ur" ? "سوالات تلاش کریں" : "Search for Questions"
+  const enterTermsText = language === "ur" ? "اپنے سوال سے متعلق مطلب درج کریں" : "Enter terms related to your question"
+  const answeredText = language === "ur" ? "جواب دیا گیا" : "Answered"
+  const pendingText = language === "ur" ? "زیر التواء" : "Pending"
+  const byText = language === "ur" ? "بذریعہ" : "By"
+
   return (
     <div className={`container py-8 ${isRTL ? "rtl" : ""}`}>
-      <h1 className="text-3xl font-bold mb-6">{language === "ur" ? "سوالات تلاش کریں" : "Search Questions"}</h1>
+      <h1 className="text-3xl font-bold mb-6">{pageTitle}</h1>
 
       {/* Search Form */}
       <form onSubmit={handleSearch} className="mb-8">
@@ -137,7 +161,7 @@ export default function SearchPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="search"
-              placeholder={language === "ur" ? "اپنا سوال تلاش کریں..." : "Search for questions..."}
+              placeholder={searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -159,10 +183,10 @@ export default function SearchPage() {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                {language === "ur" ? "تلاش کر رہا ہے..." : "Searching..."}
+                {searchingText}
               </span>
             ) : (
-              <span>{language === "ur" ? "تلاش کریں" : "Search"}</span>
+              <span>{searchButtonText}</span>
             )}
           </Button>
         </div>
@@ -172,16 +196,12 @@ export default function SearchPage() {
       {results.length > 0 ? (
         <div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <p className="text-muted-foreground">
-              {language === "ur"
-                ? `${filteredAndSortedResults.length} نتائج ملے`
-                : `Found ${filteredAndSortedResults.length} results`}
-            </p>
+            <p className="text-muted-foreground">{resultsFoundText}</p>
 
             <div className="flex flex-wrap gap-2">
               {/* Sort Controls */}
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{language === "ur" ? "ترتیب دیں:" : "Sort by:"}</span>
+                <span className="text-sm text-muted-foreground">{sortByText}</span>
                 <Button
                   variant="outline"
                   size="sm"
@@ -191,12 +211,12 @@ export default function SearchPage() {
                   {sortBy === "relevance" ? (
                     <>
                       <Filter className="h-4 w-4" />
-                      <span>{language === "ur" ? "متعلقہ" : "Relevance"}</span>
+                      <span>{relevanceText}</span>
                     </>
                   ) : (
                     <>
                       <Calendar className="h-4 w-4" />
-                      <span>{language === "ur" ? "تاریخ" : "Date"}</span>
+                      <span>{dateText}</span>
                     </>
                   )}
                 </Button>
@@ -217,7 +237,7 @@ export default function SearchPage() {
             <Tabs defaultValue="all" className="mb-6">
               <TabsList className="mb-4 flex flex-wrap">
                 <TabsTrigger value="all" onClick={() => setSelectedCategory(null)} className="mb-1">
-                  {language === "ur" ? "تمام" : "All"}
+                  {allText}
                 </TabsTrigger>
                 {categories.map((category) => (
                   <TabsTrigger
@@ -242,8 +262,8 @@ export default function SearchPage() {
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg">{question.title}</CardTitle>
                       <CardDescription>
-                        {language === "ur" ? "بذریعہ" : "By"} {question.userName} •{" "}
-                        {new Date(question.createdAt).toLocaleDateString()}
+                        {byText} {question.userName} •{" "}
+                        {new Date(question.createdAt).toLocaleDateString(language === "ur" ? "ur-PK" : "en-US")}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -251,13 +271,7 @@ export default function SearchPage() {
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">{question.categoryName}</Badge>
                         <Badge variant={question.status === "answered" ? "default" : "secondary"}>
-                          {question.status === "answered"
-                            ? language === "ur"
-                              ? "جواب دیا گیا"
-                              : "Answered"
-                            : language === "ur"
-                              ? "زیر التواء"
-                              : "Pending"}
+                          {question.status === "answered" ? answeredText : pendingText}
                         </Badge>
                       </div>
                     </CardContent>
@@ -272,26 +286,16 @@ export default function SearchPage() {
           <div className="mb-4">
             <Search className="h-12 w-12 mx-auto text-muted-foreground" />
           </div>
-          <h2 className="text-xl font-semibold mb-2">
-            {language === "ur" ? "کوئی نتیجہ نہیں ملا" : "No results found"}
-          </h2>
-          <p className="text-muted-foreground">
-            {language === "ur"
-              ? "براہ کرم اپنی تلاش کو دوبارہ چیک کریں یا کوئی اور مطلب استعمال کریں"
-              : "Please check your search or try different terms"}
-          </p>
+          <h2 className="text-xl font-semibold mb-2">{noResultsFoundText}</h2>
+          <p className="text-muted-foreground">{checkSearchText}</p>
         </div>
       ) : !loading ? (
         <div className="text-center py-12">
           <div className="mb-4">
             <Search className="h-12 w-12 mx-auto text-muted-foreground" />
           </div>
-          <h2 className="text-xl font-semibold mb-2">
-            {language === "ur" ? "سوالات تلاش کریں" : "Search for Questions"}
-          </h2>
-          <p className="text-muted-foreground">
-            {language === "ur" ? "اپنے سوال سے متعلق مطلب درج کریں" : "Enter terms related to your question"}
-          </p>
+          <h2 className="text-xl font-semibold mb-2">{searchForQuestionsText}</h2>
+          <p className="text-muted-foreground">{enterTermsText}</p>
         </div>
       ) : null}
     </div>

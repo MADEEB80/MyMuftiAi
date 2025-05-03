@@ -14,9 +14,17 @@ export interface Notification {
   createdAt?: any
 }
 
+// Safely get collection reference
+const getCollection = (collectionName: string) => {
+  if (!db) {
+    throw new Error("Firestore database not initialized")
+  }
+  return collection(db, collectionName)
+}
+
 export const createNotification = async (notification: Omit<Notification, "read" | "createdAt">) => {
   try {
-    await addDoc(collection(db, "notifications"), {
+    await addDoc(getCollection("notifications"), {
       ...notification,
       read: false,
       createdAt: serverTimestamp(),
@@ -30,7 +38,7 @@ export const createNotification = async (notification: Omit<Notification, "read"
 
 export const subscribeToUserNotifications = (userId: string, callback: (notifications: Notification[]) => void) => {
   // Create a query without orderBy to avoid index requirements
-  const q = query(collection(db, "notifications"), where("userId", "==", userId))
+  const q = query(getCollection("notifications"), where("userId", "==", userId))
 
   try {
     return onSnapshot(
@@ -64,7 +72,7 @@ export const subscribeToUserNotifications = (userId: string, callback: (notifica
         // Fallback to a one-time query without orderBy if the listener fails
         const fallbackFetch = async () => {
           try {
-            const fallbackQuery = query(collection(db, "notifications"), where("userId", "==", userId))
+            const fallbackQuery = query(getCollection("notifications"), where("userId", "==", userId))
             const querySnapshot = await getDocs(fallbackQuery)
 
             const notifications: Notification[] = []

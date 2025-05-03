@@ -22,6 +22,24 @@ interface TranslationProviderProps {
 
 // English translations
 const enTranslations = {
+  common: {
+    appName: "MyMufti",
+    loading: "Loading...",
+    error: "An error occurred",
+    search: "Search",
+    submit: "Submit",
+    cancel: "Cancel",
+    save: "Save",
+    edit: "Edit",
+    delete: "Delete",
+    back: "Back",
+    next: "Next",
+    previous: "Previous",
+    yes: "Yes",
+    no: "No",
+    noQuestionsFound: "No questions found",
+    viewAllQuestions: "View all questions",
+  },
   nav: {
     home: "Home",
     categories: "Categories",
@@ -69,6 +87,7 @@ const enTranslations = {
       subtitle: "Our scholars are ready to provide you with authentic answers",
       button: "Ask Now",
     },
+    recentAnswers: "Recent Answers",
   },
   categories: {
     questionCount: "{count} Questions",
@@ -95,6 +114,24 @@ const enTranslations = {
 
 // Urdu translations
 const urTranslations = {
+  common: {
+    appName: "میرا مفتی",
+    loading: "لوڈ ہو رہا ہے...",
+    error: "ایک خرابی پیش آگئی",
+    search: "تلاش کریں",
+    submit: "جمع کرائیں",
+    cancel: "منسوخ کریں",
+    save: "محفوظ کریں",
+    edit: "ترمیم کریں",
+    delete: "حذف کریں",
+    back: "واپس",
+    next: "اگلا",
+    previous: "پچھلا",
+    yes: "ہاں",
+    no: "نہیں",
+    noQuestionsFound: "کوئی سوال نہیں ملا",
+    viewAllQuestions: "تمام سوالات دیکھیں",
+  },
   nav: {
     home: "ہوم",
     categories: "زمرہ جات",
@@ -142,6 +179,7 @@ const urTranslations = {
       subtitle: "ہمارے علماء آپ کو صحیح جوابات فراہم کرنے کے لیے تیار ہیں",
       button: "ابھی پوچھیں",
     },
+    recentAnswers: "حالیہ جوابات",
   },
   categories: {
     questionCount: "{count} سوالات",

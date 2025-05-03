@@ -4,16 +4,17 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Providers } from "./providers"
 import ClientLayout from "./client-layout"
+import { Suspense } from "react"
 
 // Load Inter font
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
 // Define metadata for SEO
 export const metadata: Metadata = {
-  title: "MyMufti.com - Islamic Q&A Platform",
-  description: "Get authentic answers to your Islamic questions from qualified scholars",
+  title: "MyMufti - Islamic Q&A Platform",
+  description: "Get answers to your Islamic questions from qualified scholars",
   keywords: "Islam, questions, answers, fatwa, Islamic scholars, Mufti",
-    generator: 'v0.dev'
+  generator: "v0.dev",
 }
 
 export default function RootLayout({
@@ -41,7 +42,9 @@ export default function RootLayout({
       </head>
       <body className={inter.variable}>
         <Providers>
-          <ClientLayout>{children}</ClientLayout>
+          <Suspense fallback={<div>Loading...</div>}>
+            <ClientLayout>{children}</ClientLayout>
+          </Suspense>
         </Providers>
       </body>
     </html>

@@ -9,6 +9,7 @@ import NotificationBell from "@/components/notification-bell"
 import LanguageSwitcher from "@/components/language-switcher"
 import { useAuth } from "@/lib/auth-context"
 import { useTranslation } from "@/lib/translation-context"
+import { useLanguage } from "@/lib/language-context"
 import { Menu, X, Home, User, LogOut, Settings, Shield, GraduationCap } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -18,6 +19,7 @@ export function Header() {
   const router = useRouter()
   const pathname = usePathname()
   const { t } = useTranslation()
+  const { language, isRTL } = useLanguage()
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -43,11 +45,11 @@ export function Header() {
   const userRole = user?.role || "user"
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white">
+    <header className={`sticky top-0 z-50 w-full border-b bg-white ${isRTL ? "rtl" : "ltr"}`}>
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center">
-            <span className="text-xl font-bold text-green-600">MyMufti</span>
+            <span className="text-xl font-bold text-green-600">{language === "ur" ? "میرا مفتی" : "MyMufti"}</span>
             <span className="text-xl font-bold text-gray-700">.com</span>
           </Link>
         </div>
@@ -61,7 +63,7 @@ export function Header() {
               isActive("/") ? "text-green-600" : "text-gray-600",
             )}
           >
-            {t("home")}
+            {t("nav.home")}
           </Link>
           <Link
             href="/categories"
@@ -70,7 +72,7 @@ export function Header() {
               isActive("/categories") ? "text-green-600" : "text-gray-600",
             )}
           >
-            {t("categories")}
+            {t("nav.categories")}
           </Link>
           <Link
             href="/search"
@@ -79,7 +81,7 @@ export function Header() {
               isActive("/search") ? "text-green-600" : "text-gray-600",
             )}
           >
-            {t("search")}
+            {t("nav.search")}
           </Link>
           <Link
             href="/dashboard/ask"
@@ -88,7 +90,7 @@ export function Header() {
               isActive("/dashboard/ask") ? "text-green-600" : "text-gray-600",
             )}
           >
-            {t("ask_a_question")}
+            {t("nav.askQuestion")}
           </Link>
         </nav>
 
@@ -116,7 +118,9 @@ export function Header() {
 
                 {/* Dropdown Menu */}
                 {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                  <div
+                    className={`absolute ${isRTL ? "left-0" : "right-0"} mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50`}
+                  >
                     <div className="py-1">
                       {/* User info */}
                       <div className="px-4 py-2 border-b">
@@ -130,8 +134,8 @@ export function Header() {
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        <Home className="mr-2 h-4 w-4" />
-                        Dashboard
+                        <Home className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                        {t("nav.dashboard")}
                       </Link>
 
                       <Link
@@ -139,8 +143,8 @@ export function Header() {
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        <User className="mr-2 h-4 w-4" />
-                        Profile
+                        <User className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                        {t("nav.profile")}
                       </Link>
 
                       {/* Admin Panel Link */}
@@ -150,8 +154,8 @@ export function Header() {
                           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           onClick={() => setIsMenuOpen(false)}
                         >
-                          <Shield className="mr-2 h-4 w-4" />
-                          Admin Panel
+                          <Shield className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                          {t("nav.adminPanel")}
                         </Link>
                       )}
 
@@ -162,8 +166,8 @@ export function Header() {
                           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           onClick={() => setIsMenuOpen(false)}
                         >
-                          <GraduationCap className="mr-2 h-4 w-4" />
-                          Scholar Panel
+                          <GraduationCap className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                          {t("nav.scholarPanel")}
                         </Link>
                       )}
 
@@ -172,8 +176,8 @@ export function Header() {
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        <Settings className="mr-2 h-4 w-4" />
-                        Settings
+                        <Settings className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                        {t("nav.settings")}
                       </Link>
 
                       {/* Logout */}
@@ -185,8 +189,8 @@ export function Header() {
                           }}
                           className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                         >
-                          <LogOut className="mr-2 h-4 w-4" />
-                          Log out
+                          <LogOut className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                          {t("auth.logout")}
                         </button>
                       </div>
                     </div>
@@ -197,10 +201,10 @@ export function Header() {
           ) : (
             <div className="hidden md:flex items-center gap-2">
               <Button asChild variant="ghost">
-                <Link href="/auth/login">{t("login")}</Link>
+                <Link href="/auth/login">{t("auth.login")}</Link>
               </Button>
               <Button asChild className="bg-green-600 hover:bg-green-700">
-                <Link href="/auth/register">{t("register")}</Link>
+                <Link href="/auth/register">{t("auth.register")}</Link>
               </Button>
             </div>
           )}
@@ -216,7 +220,7 @@ export function Header() {
       {/* Mobile Navigation */}
       {isMenuOpen && (
         <div className="md:hidden">
-          <div className="space-y-1 px-4 pb-3 pt-2">
+          <div className={`space-y-1 px-4 pb-3 pt-2 ${isRTL ? "rtl" : "ltr"}`}>
             <Link
               href="/"
               className={cn(
@@ -225,8 +229,8 @@ export function Header() {
               )}
               onClick={() => setIsMenuOpen(false)}
             >
-              <Home className="mr-2 h-4 w-4" />
-              {t("home")}
+              <Home className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+              {t("nav.home")}
             </Link>
 
             <Link
@@ -237,7 +241,7 @@ export function Header() {
               )}
               onClick={() => setIsMenuOpen(false)}
             >
-              {t("categories")}
+              {t("nav.categories")}
             </Link>
 
             <Link
@@ -248,7 +252,7 @@ export function Header() {
               )}
               onClick={() => setIsMenuOpen(false)}
             >
-              {t("search")}
+              {t("nav.search")}
             </Link>
 
             <Link
@@ -259,7 +263,7 @@ export function Header() {
               )}
               onClick={() => setIsMenuOpen(false)}
             >
-              {t("ask_a_question")}
+              {t("nav.askQuestion")}
             </Link>
 
             {user && (
@@ -270,8 +274,8 @@ export function Header() {
                     className="flex items-center py-2 text-base font-medium text-gray-600 hover:text-green-600"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <Home className="mr-2 h-4 w-4" />
-                    Dashboard
+                    <Home className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                    {t("nav.dashboard")}
                   </Link>
 
                   <Link
@@ -279,8 +283,8 @@ export function Header() {
                     className="flex items-center py-2 text-base font-medium text-gray-600 hover:text-green-600"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
+                    <User className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                    {t("nav.profile")}
                   </Link>
 
                   {/* Admin Panel Link */}
@@ -290,8 +294,8 @@ export function Header() {
                       className="flex items-center py-2 text-base font-medium text-gray-600 hover:text-green-600"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <Shield className="mr-2 h-4 w-4" />
-                      Admin Panel
+                      <Shield className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                      {t("nav.adminPanel")}
                     </Link>
                   )}
 
@@ -302,8 +306,8 @@ export function Header() {
                       className="flex items-center py-2 text-base font-medium text-gray-600 hover:text-green-600"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <GraduationCap className="mr-2 h-4 w-4" />
-                      Scholar Panel
+                      <GraduationCap className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                      {t("nav.scholarPanel")}
                     </Link>
                   )}
                 </div>
@@ -316,8 +320,8 @@ export function Header() {
                     setIsMenuOpen(false)
                   }}
                 >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Log out
+                  <LogOut className={`${isRTL ? "ml-2" : "mr-2"} h-4 w-4`} />
+                  {t("auth.logout")}
                 </Button>
               </>
             )}
@@ -326,12 +330,12 @@ export function Header() {
               <div className="pt-4 flex flex-col space-y-2">
                 <Button asChild variant="outline">
                   <Link href="/auth/login" onClick={() => setIsMenuOpen(false)}>
-                    {t("login")}
+                    {t("auth.login")}
                   </Link>
                 </Button>
                 <Button asChild className="bg-green-600 hover:bg-green-700">
                   <Link href="/auth/register" onClick={() => setIsMenuOpen(false)}>
-                    {t("register")}
+                    {t("auth.register")}
                   </Link>
                 </Button>
               </div>
