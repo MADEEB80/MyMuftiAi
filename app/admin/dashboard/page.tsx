@@ -1,11 +1,9 @@
-"use client"
-
-import { CardFooter } from "@/components/ui/card"
+'use client'
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -22,18 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Users, BookOpen, HelpCircle, FileText, BarChart3, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { db } from "@/lib/firebase"
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  limit,
-  doc,
-  updateDoc,
-  getDoc,
-  Timestamp,
-} from "firebase/firestore"
+import { doc, updateDoc, getDoc, Timestamp } from "firebase/firestore"
 import { createNotification } from "@/lib/notification-service"
 
 interface DashboardStats {
@@ -52,7 +39,7 @@ interface Question {
   userName: string
   status: string
   category: string
-  createdAt: Date
+  createdAt: string
   assignedTo?: string
   scholarName?: string
 }
@@ -63,21 +50,26 @@ interface Scholar {
   email: string
 }
 
-export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    totalQuestions: 0,
-    pendingQuestions: 0,
-    answeredQuestions: 0,
-    totalCategories: 0,
-    totalScholars: 0,
-  })
-  const [recentQuestions, setRecentQuestions] = useState<Question[]>([])
-  const [pendingQuestions, setPendingQuestions] = useState<Question[]>([])
-  const [loading, setLoading] = useState(true)
+interface DashboardProps {
+  initialStats: DashboardStats
+  initialRecentQuestions: Question[]
+  initialPendingQuestions: Question[]
+  initialScholars: Scholar[]
+}
+
+export default function Dashboard({
+  initialStats,
+  initialRecentQuestions,
+  initialPendingQuestions,
+  initialScholars,
+}: DashboardProps) {
+  const [stats, setStats] = useState<DashboardStats>(initialStats)
+  const [recentQuestions, setRecentQuestions] = useState<Question[]>(initialRecentQuestions)
+  const [pendingQuestions, setPendingQuestions] = useState<Question[]>(initialPendingQuestions)
+  const [scholars, setScholars] = useState<Scholar[]>(initialScholars)
+  const [loading, setLoading] = useState(false)
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
-  const [scholars, setScholars] = useState<Scholar[]>([])
   const [selectedScholar, setSelectedScholar] = useState<string>("")
   const [isActionLoading, setIsActionLoading] = useState(false)
 
@@ -85,122 +77,10 @@ export default function AdminDashboardPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (user && userRole === "admin") {
-      fetchDashboardData()
-      fetchScholars()
-    } else if (!loading) {
+    if (!user || userRole !== "admin") {
       router.push("/")
     }
-  }, [user, userRole, loading, router])
-
-  const fetchDashboardData = async () => {
-    try {
-      // Fetch stats
-      const usersSnapshot = await getDocs(collection(db, "users"))
-      const totalUsers = usersSnapshot.size
-
-      const scholarsQuery = query(collection(db, "users"), where("role", "==", "scholar"))
-      const scholarsSnapshot = await getDocs(scholarsQuery)
-      const totalScholars = scholarsSnapshot.size
-
-      const questionsSnapshot = await getDocs(collection(db, "questions"))
-      const totalQuestions = questionsSnapshot.size
-
-      const pendingQuery = query(collection(db, "questions"), where("status", "==", "pending"))
-      const pendingSnapshot = await getDocs(pendingQuery)
-      const pendingQuestions = pendingSnapshot.size
-
-      const answeredQuery = query(collection(db, "questions"), where("status", "==", "answered"))
-      const answeredSnapshot = await getDocs(answeredQuery)
-      const answeredQuestions = answeredSnapshot.size
-
-      const categoriesSnapshot = await getDocs(collection(db, "categories"))
-      const totalCategories = categoriesSnapshot.size
-
-      setStats({
-        totalUsers,
-        totalQuestions,
-        pendingQuestions,
-        answeredQuestions,
-        totalCategories,
-        totalScholars,
-      })
-
-      // Fetch recent questions
-      const recentQuery = query(collection(db, "questions"), orderBy("createdAt", "desc"), limit(5))
-      const recentSnapshot = await getDocs(recentQuery)
-      const recentData: Question[] = []
-
-      recentSnapshot.forEach((doc) => {
-        const data = doc.data()
-        recentData.push({
-          id: doc.id,
-          title: data.title || "Untitled",
-          userId: data.userId || "",
-          userName: data.userName || "Anonymous",
-          status: data.status || "pending",
-          category: data.category || "general",
-          createdAt: data.createdAt?.toDate() || new Date(),
-          assignedTo: data.assignedTo || undefined,
-          scholarName: data.scholarName || undefined,
-        })
-      })
-
-      setRecentQuestions(recentData)
-
-      // Fetch pending questions - simplified query to avoid index requirements
-      const pendingQuestionsQuery = query(
-        collection(db, "questions"),
-        where("status", "in", ["pending", "approved"]),
-        limit(10),
-      )
-      // Note: We're removing the orderBy to avoid requiring a composite index
-      const pendingQuestionsSnapshot = await getDocs(pendingQuestionsQuery)
-      const pendingData: Question[] = []
-
-      pendingQuestionsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        pendingData.push({
-          id: doc.id,
-          title: data.title || "Untitled",
-          userId: data.userId || "",
-          userName: data.userName || "Anonymous",
-          status: data.status || "pending",
-          category: data.category || "general",
-          createdAt: data.createdAt?.toDate() || new Date(),
-          assignedTo: data.assignedTo || undefined,
-          scholarName: data.scholarName || undefined,
-        })
-      })
-
-      setPendingQuestions(pendingData)
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchScholars = async () => {
-    try {
-      const q = query(collection(db, "users"), where("role", "==", "scholar"))
-      const querySnapshot = await getDocs(q)
-      const fetchedScholars: Scholar[] = []
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data()
-        fetchedScholars.push({
-          id: doc.id,
-          displayName: data.displayName || "Unknown Scholar",
-          email: data.email || "",
-        })
-      })
-
-      setScholars(fetchedScholars)
-    } catch (error) {
-      console.error("Error fetching scholars:", error)
-    }
-  }
+  }, [user, userRole, router])
 
   const handleApproveQuestion = async (questionId: string) => {
     setIsActionLoading(true)
@@ -210,12 +90,10 @@ export default function AdminDashboardPage() {
         updatedAt: Timestamp.now(),
       })
 
-      // Update local state
       setPendingQuestions((prevQuestions) =>
         prevQuestions.map((q) => (q.id === questionId ? { ...q, status: "approved" } : q)),
       )
 
-      // Notify the user
       const question = pendingQuestions.find((q) => q.id === questionId)
       if (question) {
         await createNotification({
@@ -228,6 +106,7 @@ export default function AdminDashboardPage() {
       }
     } catch (error) {
       console.error("Error approving question:", error)
+      alert("Failed to approve question.")
     } finally {
       setIsActionLoading(false)
     }
@@ -241,12 +120,10 @@ export default function AdminDashboardPage() {
         updatedAt: Timestamp.now(),
       })
 
-      // Update local state
       setPendingQuestions((prevQuestions) =>
         prevQuestions.map((q) => (q.id === questionId ? { ...q, status: "rejected" } : q)),
       )
 
-      // Notify the user
       const question = pendingQuestions.find((q) => q.id === questionId)
       if (question) {
         await createNotification({
@@ -259,6 +136,7 @@ export default function AdminDashboardPage() {
       }
     } catch (error) {
       console.error("Error rejecting question:", error)
+      alert("Failed to reject question.")
     } finally {
       setIsActionLoading(false)
     }
@@ -269,7 +147,6 @@ export default function AdminDashboardPage() {
 
     setIsActionLoading(true)
     try {
-      // Get scholar name
       const scholarDoc = await getDoc(doc(db, "users", selectedScholar))
       const scholarName = scholarDoc.exists() ? scholarDoc.data().displayName || "Scholar" : "Scholar"
 
@@ -279,14 +156,12 @@ export default function AdminDashboardPage() {
         updatedAt: Timestamp.now(),
       })
 
-      // Update local state
       setPendingQuestions((prevQuestions) =>
         prevQuestions.map((q) =>
           q.id === selectedQuestion.id ? { ...q, assignedTo: selectedScholar, scholarName: scholarName } : q,
         ),
       )
 
-      // Notify the scholar
       await createNotification({
         userId: selectedScholar,
         type: "question_assigned",
@@ -295,18 +170,19 @@ export default function AdminDashboardPage() {
         relatedId: selectedQuestion.id,
       })
 
-      // Close dialog
       setIsAssignDialogOpen(false)
       setSelectedQuestion(null)
       setSelectedScholar("")
     } catch (error) {
       console.error("Error assigning question:", error)
+      alert("Failed to assign question.")
     } finally {
       setIsActionLoading(false)
     }
   }
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
     return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "short",
@@ -345,14 +221,6 @@ export default function AdminDashboardPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="container flex h-[calc(100vh-200px)] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
-
   if (!user || userRole !== "admin") {
     return (
       <div className="container py-10">
@@ -375,7 +243,6 @@ export default function AdminDashboardPage() {
     <div className="container py-10">
       <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card>
           <CardHeader className="pb-2">
@@ -436,7 +303,6 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -467,7 +333,6 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Developer Tools */}
       {process.env.NODE_ENV !== "production" && (
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Developer Tools</h2>
@@ -482,7 +347,6 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Tabs for Questions */}
       <Tabs defaultValue="pending" className="mt-8">
         <TabsList className="mb-4">
           <TabsTrigger value="pending">Pending Questions</TabsTrigger>
@@ -620,7 +484,6 @@ export default function AdminDashboardPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Assign Question Dialog */}
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent>
           <DialogHeader>
