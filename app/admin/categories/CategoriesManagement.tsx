@@ -111,17 +111,19 @@ export default function CategoriesManagement({ initialCategories }: { initialCat
         throw new Error("A category with this value already exists")
       }
 
-      await updateDoc(doc(db, "categories", selectedCategory.id), {
+      const updatedCategory = {
         name: categoryName,
         value: categoryValue.toLowerCase(),
         description: categoryDescription,
         updatedAt: serverTimestamp(),
-      })
+      }
+
+      await updateDoc(doc(db, "categories", selectedCategory.id), updatedCategory)
 
       setCategories((prevCategories) =>
         prevCategories.map((category) =>
           category.id === selectedCategory.id
-            ? { ...category, name: categoryName, value: categoryValue.toLowerCase(), description: categoryDescription }
+            ? { ...category, ...updatedCategory, updatedAt: new Date().toISOString() }
             : category,
         ),
       )
@@ -147,6 +149,7 @@ export default function CategoriesManagement({ initialCategories }: { initialCat
       setSelectedCategory(null)
     } catch (error) {
       console.error("Error deleting category:", error)
+      alert("Failed to delete category. Please try again.")
     } finally {
       setIsActionLoading(false)
     }

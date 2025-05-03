@@ -43,5 +43,6 @@ async function fetchCategories() {
 
 export default async function CategoriesPage() {
   const categories = await fetchCategories()
-  return <CategoriesManagement initialCategories={categories} />
+  // Ensure categories is a plain array of serializable objects
+  return <CategoriesManagement initialCategories={JSON.parse(JSON.stringify(categories))} />
 }
